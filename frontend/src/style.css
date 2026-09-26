@@ -73,33 +73,45 @@ a:focus-visible {
 .brand {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 10px;
   text-decoration: none;
   font-size: 27px;
   font-weight: 600;
   letter-spacing: 3px;
-  padding-left: 10px;
+  padding-left: 0;
 }
 .brand small {
   display: block;
-  font-size: 11px;
-  letter-spacing: 2px;
+  font-size: 10px;
+  letter-spacing: 0;
+  white-space: nowrap;
   font-weight: 400;
   color: #65736b;
   margin-top: 3px;
 }
 .brand-icon {
-  display: grid;
-  place-items: center;
-  width: 44px;
-  height: 49px;
-  border-radius: 18px 18px 18px 5px;
-  background: linear-gradient(145deg, #d9e9df, #9fc7b8);
-  color: #28665d;
-  font-size: 23px;
+  position: relative;
+  flex-shrink: 0;
+  overflow: hidden;
+  width: 52px;
+  height: 52px;
+  border-radius: 17px;
+  background: #f8fafc;
+  border: 1px solid rgba(255, 255, 255, 0.9);
   box-shadow:
-    4px 5px 12px #cfdbd0,
+    3px 4px 12px rgba(41, 54, 49, 0.08),
     inset 1px 1px 1px white;
+}
+/* 原始 Logo 保持不变；放大画布减少留白，让白熊主体在小尺寸下依然清晰。 */
+.brand-icon img {
+  position: absolute;
+  width: 175%;
+  height: 175%;
+  max-width: none;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  object-fit: contain;
 }
 .nav-caption {
   font-size: 11px;
@@ -858,11 +870,12 @@ footer {
     font-size: 22px;
   }
   .brand-icon {
-    height: 38px;
-    width: 38px;
+    height: 44px;
+    width: 44px;
+    border-radius: 14px;
   }
   .brand small {
-    display: none;
+    font-size: 10px;
   }
   .nav-caption,
   .sidebar-note,

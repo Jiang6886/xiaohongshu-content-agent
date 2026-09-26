@@ -2,6 +2,7 @@
 // 各业务页面通过 props 读取快照，通过 api 提交变更后刷新。
 
 import BackendJobs from "./components/BackendJobs";
+import studioLogo from "./assets/white-bear-logo.png";
 import { statusLabel, activeStatuses, isDemo, backend } from "./api";
 import ResearchPage from "./pages/ResearchPage";
 import Analysis from "./pages/Analysis";
@@ -145,9 +146,11 @@ function Shell() {
     <div className="workspace">
       <aside className="sidebar">
         <a href="/analysis" className="brand">
-          <span className="brand-icon">叶</span>
+          <span className="brand-icon">
+            <img src={studioLogo} alt="白熊工作室 Logo" width={1254} height={1254} />
+          </span>
           <span>
-            拾叶<small>内容研究台</small>
+            拾叶<small>白熊工作室 · 内容研究台</small>
           </span>
         </a>
         <div className="nav-caption">你的创作工作区</div>
@@ -278,7 +281,7 @@ function Shell() {
             </Routes>
           )}
           <footer>
-            拾叶 CONTENT STUDIO <span>认真观察，自由创作。</span>
+            拾叶 · 白熊工作室 <span>认真观察，自由创作。</span>
           </footer>
         </div>
       </main>
