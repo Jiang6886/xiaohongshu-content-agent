@@ -1,0 +1,18 @@
+name: shiye-mcp
+services:
+  xiaohongshu-mcp:
+    image: xpzouying/xiaohongshu-mcp@sha256:5bc690d0c7907f069886ddeb6b37abbe4bdd37bd431975b914c7c27435b1b602
+    platform: linux/amd64
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18060:18060"
+    environment:
+      COOKIES_PATH: /app/data/cookies.json
+      XDG_CONFIG_HOME: /app/data/config
+    volumes:
+      - ../../data/mcp:/app/data
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"

@@ -1,0 +1,1444 @@
+/* 第一套视觉风格：暖奶油底色、薄荷绿、淡桃粉与柔和玻璃卡片。
+ * 本文件按基础组件 → 响应式 → 紧凑布局覆盖排列；后段规则有意覆盖前段。
+ */
+
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: #f7f4ee;
+  color: #293631;
+  font-family:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  font-size: 14px;
+}
+button,
+a,
+input,
+textarea {
+  touch-action: manipulation;
+}
+button {
+  font: inherit;
+}
+a {
+  color: inherit;
+}
+h1,
+h2,
+h3,
+p {
+  margin-top: 0;
+}
+h2 {
+  font-size: 19px;
+  font-weight: 600;
+}
+h3 {
+  font-size: 16px;
+  line-height: 1.6;
+}
+p {
+  line-height: 1.8;
+}
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid #28665d;
+  outline-offset: 4px;
+}
+/* 工作区骨架：侧栏与主内容区并排，页面内容统一由壳层管理。 */
+.workspace {
+  min-height: 100vh;
+  background:
+    radial-gradient(
+      ellipse at 65% 0,
+      rgba(218, 231, 218, 0.45),
+      transparent 43%
+    ),
+    #f7f4ee;
+}
+.sidebar {
+  width: 228px;
+  position: fixed;
+  inset: 0 auto 0 0;
+  border-right: 1px solid #e5e7de;
+  padding: 40px 22px 24px;
+  background: rgba(250, 249, 244, 0.7);
+  display: flex;
+  flex-direction: column;
+  z-index: 10;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  text-decoration: none;
+  font-size: 27px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  padding-left: 10px;
+}
+.brand small {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 2px;
+  font-weight: 400;
+  color: #65736b;
+  margin-top: 3px;
+}
+.brand-icon {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 49px;
+  border-radius: 18px 18px 18px 5px;
+  background: linear-gradient(145deg, #d9e9df, #9fc7b8);
+  color: #28665d;
+  font-size: 23px;
+  box-shadow:
+    4px 5px 12px #cfdbd0,
+    inset 1px 1px 1px white;
+}
+.nav-caption {
+  font-size: 11px;
+  color: #6a786e;
+  letter-spacing: 1px;
+  margin: 49px 12px 14px;
+}
+nav {
+  display: grid;
+  gap: 8px;
+}
+nav a {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  padding: 15px 17px;
+  border-radius: 13px;
+  text-decoration: none;
+  color: #637169;
+  transition: background 0.2s;
+}
+nav a .anticon {
+  font-size: 19px;
+}
+nav a:hover {
+  background: #eef1e8;
+}
+nav a.active {
+  background: linear-gradient(115deg, #e2ece3, #d4e5dc);
+  color: #285d50;
+  font-weight: 600;
+  box-shadow:
+    inset 0 1px 1px #fff,
+    3px 4px 9px #dbe2d7;
+}
+nav a.active:after {
+  content: "";
+  margin-left: auto;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: #28665d;
+}
+.sidebar-note {
+  margin-top: auto;
+  padding: 32px 12px;
+}
+.sidebar-note h3 {
+  font-size: 14px;
+  margin-top: 14px;
+  margin-bottom: 8px;
+}
+.sidebar-note p {
+  font-size: 12px;
+  color: #657369;
+}
+.leaf-art {
+  font-size: 48px;
+  color: #89ae99;
+}
+.local {
+  padding: 20px 10px 0;
+  border-top: 1px solid #e1e5d9;
+  font-size: 12px;
+}
+.local i {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: #68997f;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+.local small {
+  display: block;
+  color: #6c776f;
+  font-size: 10px;
+  padding-top: 7px;
+}
+main {
+  margin-left: 228px;
+  min-width: 0;
+}
+/* 顶部状态栏与导航定位。 */
+.topbar {
+  height: 83px;
+  padding: 0 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e7e9df;
+  color: #65736b;
+  font-size: 11px;
+  letter-spacing: 1px;
+}
+.topbar > div {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+.slash {
+  padding: 0 12px;
+  color: #a1aaa0;
+}
+.avatar {
+  border: 1px solid white;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  background: #e5e9dd;
+  color: #526357;
+}
+.content {
+  max-width: 1500px;
+  margin: auto;
+  padding: 35px 42px 20px;
+}
+/* 共用页面标题与玻璃卡片基础样式。 */
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 29px;
+}
+.eyebrow {
+  color: #6b8477;
+  letter-spacing: 2.5px;
+  font-size: 10px;
+  font-weight: 600;
+  margin-bottom: 13px;
+}
+h1 {
+  font-size: 29px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  margin-bottom: 12px;
+}
+.heading p {
+  color: #69776e;
+  margin: 0;
+  font-size: 13px;
+}
+.heading > .ant-btn {
+  flex-shrink: 0;
+}
+.glass {
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  background: rgba(252, 250, 246, 0.82);
+  border-radius: 24px;
+  box-shadow:
+    6px 8px 20px rgba(73, 93, 74, 0.07),
+    inset 0 0 0 1px rgba(128, 150, 130, 0.08);
+}
+.mint {
+  background:
+    radial-gradient(ellipse at 90% 100%, #cfe4d9a8, transparent 80%),
+    rgba(250, 252, 247, 0.84);
+}
+.peach {
+  background:
+    radial-gradient(ellipse at 95% 95%, #efcfc788, transparent 90%),
+    rgba(252, 250, 246, 0.86);
+}
+/* 研究选择与范围标签；后续统计均基于当前研究。 */
+.research-filter {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 25px;
+  font-size: 12px;
+  color: #67756b;
+  flex-wrap: wrap;
+}
+.research-filter > .ant-select {
+  width: 360px;
+  max-width: 100%;
+}
+.filter-keywords {
+  display: flex;
+  gap: 14px;
+  margin-left: auto;
+  font-size: 11px;
+}
+/* 四项样本统计卡片。 */
+.stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 30px;
+}
+.stat {
+  padding: 21px 24px;
+}
+.stat-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #57675c;
+}
+.stat-label > span {
+  color: #719184;
+  font-size: 18px;
+}
+.stat strong {
+  display: block;
+  font-size: 35px;
+  font-weight: 500;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+.stat small {
+  color: #758074;
+  font-size: 11px;
+}
+.section-title {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  margin: 27px 0 18px;
+}
+.section-title h2 {
+  margin: 0;
+}
+.section-title h2 small {
+  font-size: 11px;
+  font-weight: 400;
+  color: #728073;
+  margin-left: 15px;
+}
+.section-title > span {
+  font-size: 11px;
+  color: #667568;
+}
+.scope .anticon {
+  margin-right: 6px;
+}
+/* 分析概览双栏：左侧话题分布，右侧模型观察。 */
+.analysis-grid {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 22px;
+}
+.chart-card {
+  padding: 27px 30px;
+}
+.row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.row h2,
+.row h3 {
+  margin-bottom: 0;
+}
+.muted {
+  color: #657469;
+  font-size: 13px;
+}
+.chart-card > .muted {
+  font-size: 11px;
+  margin-top: 8px;
+  margin-bottom: 25px;
+}
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  border: 0;
+  background: none;
+  padding: 13px 0;
+  cursor: pointer;
+  text-align: left;
+  color: #435a4d;
+}
+.bar-row > span {
+  width: 85px;
+  font-size: 12px;
+}
+.bar-track {
+  height: 12px;
+  flex: 1;
+  background: #e9ede4;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.bar-track > div {
+  height: 100%;
+  border-radius: 4px;
+}
+.bar-row b {
+  width: 38px;
+  font-weight: 500;
+  text-align: right;
+}
+.bar-row small {
+  font-size: 10px;
+  color: #738174;
+}
+.chart-foot {
+  border-top: 1px solid #e4e8dd;
+  margin-top: 17px;
+  padding-top: 16px;
+  color: #788575;
+  font-size: 11px;
+}
+.observation {
+  padding: 28px 30px;
+  display: flex;
+  flex-direction: column;
+}
+.pill {
+  display: inline-block;
+  background: rgba(247, 249, 240, 0.8);
+  border: 1px solid #e1e5d9;
+  padding: 4px 10px;
+  border-radius: 20px;
+  color: #6d7b6b;
+  font-size: 10px;
+}
+.observation h2 {
+  font-size: 24px;
+  line-height: 1.7;
+  margin: 20px 0 12px;
+  font-weight: 500;
+}
+.observation p {
+  font-size: 12px;
+  color: #637264;
+  max-width: 310px;
+}
+.observation-footer {
+  margin-top: auto;
+  font-size: 10px;
+  color: #776e61;
+  padding: 13px 0;
+}
+.observation > .ant-btn {
+  align-self: flex-start;
+  padding-left: 0;
+}
+/* 选题卡片基础网格；桌面候选列表的分页与截断规则在文件后段覆盖。 */
+.topic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.topic-card {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+}
+.index {
+  color: #9aa696;
+  font-size: 20px;
+  font-weight: 300;
+}
+.topic-card h3 {
+  font-size: 17px;
+  margin: 20px 0 11px;
+  min-height: 54px;
+}
+.topic-card p {
+  font-size: 12px;
+  color: #68776a;
+}
+.topic-bottom {
+  border-top: 1px solid #e0e6d9;
+  padding-top: 13px;
+  margin-top: auto;
+  font-size: 11px;
+  color: #778475;
+}
+.ant-tag {
+  border-radius: 7px;
+}
+/* 研究管理页：流程说明和任务卡片。 */
+.journey {
+  display: flex;
+  padding: 32px;
+  gap: 40px;
+  align-items: center;
+  margin: 10px 0 30px;
+}
+.journey-intro {
+  flex: 1;
+}
+.journey h2 {
+  font-size: 23px;
+  margin: 14px 0 8px;
+}
+.journey p {
+  font-size: 12px;
+  color: #697b6c;
+  margin-bottom: 0;
+}
+.journey-steps {
+  display: flex;
+  gap: 32px;
+}
+.journey-steps b {
+  display: block;
+  font-size: 30px;
+  color: #7eab95;
+  font-weight: 300;
+  margin-bottom: 10px;
+}
+.journey-steps span {
+  font-size: 12px;
+}
+.run-list {
+  display: grid;
+  gap: 16px;
+}
+.run-card {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 25px;
+}
+.run-icon {
+  background: #e3ede4;
+  border: 1px solid white;
+  border-radius: 17px;
+  font-size: 25px;
+  padding: 18px;
+  color: #729784;
+}
+.run-body {
+  flex: 1;
+  min-width: 0;
+}
+.run-body p {
+  font-size: 12px;
+  color: #667a6b;
+  margin: 10px 0 5px;
+}
+.run-body small {
+  font-size: 11px;
+  color: #788276;
+}
+.dot {
+  padding: 0 8px;
+}
+/* 样本表格、筛选工具条与排除状态。 */
+.samples {
+  padding: 24px;
+}
+.table-toolbar {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.table-toolbar > .ant-input-affix-wrapper {
+  max-width: 350px;
+}
+.table-toolbar > .ant-select {
+  width: 155px;
+}
+.title-button {
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
+  color: #314e40;
+  padding: 5px 0;
+}
+.title-button small {
+  display: block;
+  font-size: 10px;
+  margin-top: 7px;
+  color: #768375;
+}
+.excluded {
+  opacity: 0.55;
+}
+/* 写作工作台：左侧选题/草稿，右侧编辑与预览。 */
+.writing-layout {
+  display: grid;
+  grid-template-columns: 310px minmax(0, 1fr);
+  gap: 25px;
+}
+.writing-list > .section-title {
+  margin-top: 0;
+}
+.writing-topic {
+  padding: 20px;
+  margin-bottom: 16px;
+}
+.writing-topic h3 {
+  margin: 12px 0 8px;
+}
+.writing-topic p {
+  font-size: 12px;
+  color: #697969;
+}
+.writing-topic.selected {
+  border-color: #80a68f;
+  background: #e9f0e6;
+}
+.evidence-links {
+  display: flex;
+  gap: 10px;
+  margin: 15px 0;
+}
+.evidence-links button {
+  background: none;
+  border: 0;
+  color: #28665d;
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.editor-panel {
+  padding: 28px;
+  align-self: start;
+  min-height: 640px;
+}
+.editor-empty {
+  min-height: 570px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.empty-symbol {
+  padding: 25px;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #f8fbf5, #d9e8db);
+  box-shadow:
+    8px 8px 20px #dfe5d9,
+    inset 1px 1px white;
+  font-size: 35px;
+  color: #7b9b83;
+  margin-bottom: 32px;
+}
+.editor-empty p {
+  font-size: 13px;
+  color: #6e7b6d;
+}
+.field-label {
+  display: block;
+  margin: 24px 0 10px;
+}
+.writing-hint {
+  font-size: 12px;
+  color: #7a7767;
+  margin: 18px 0 25px;
+}
+.editor-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 24px 0 15px;
+  font-size: 11px;
+  color: #71816e;
+}
+.markdown-editor.ant-input {
+  min-height: 400px;
+  margin-top: 12px;
+  padding: 20px;
+  font-size: 14px;
+  line-height: 1.9;
+  resize: vertical;
+  background: #fffefb;
+}
+.markdown-preview {
+  padding: 20px;
+  background: #fffefb;
+  min-height: 400px;
+  overflow-wrap: anywhere;
+  line-height: 1.9;
+}
+.markdown-preview h1 {
+  font-size: 24px;
+}
+.markdown-preview blockquote {
+  border-left: 3px solid #9db5a1;
+  padding-left: 12px;
+  color: #697365;
+}
+.editor-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.editor-actions > span {
+  margin-right: auto;
+  font-size: 11px;
+}
+.draft-link {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid #e0e7d8;
+  padding: 13px;
+  background: none;
+  cursor: pointer;
+  line-height: 1.7;
+  color: #3c5a46;
+}
+.draft-link small {
+  display: block;
+  color: #788675;
+}
+/* 模型/创作设置与连接状态区域。 */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 1.25fr 1fr;
+  gap: 24px;
+}
+.settings-card {
+  padding: 30px;
+  margin-bottom: 22px;
+}
+.settings-heading {
+  margin-top: 30px;
+}
+.two {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+.two .ant-input-number {
+  width: 100%;
+}
+.connection {
+  padding: 30px;
+  margin-bottom: 23px;
+}
+.connection h2 {
+  margin: 19px 0;
+}
+.connection-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 0;
+  border-bottom: 1px solid #dfe7d8;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.connection > .ant-btn {
+  margin-top: 12px;
+}
+/* 样本详情与证据指标；保留正文换行以便阅读来源。 */
+.note-body {
+  white-space: pre-wrap;
+  margin: 25px 0;
+}
+.evidence-stats {
+  padding: 16px;
+  background: #eff3ea;
+  border-radius: 12px;
+}
+.loading {
+  height: 60vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  color: #71826e;
+}
+footer {
+  display: flex;
+  justify-content: space-between;
+  color: #7d897a;
+  font-size: 9px;
+  letter-spacing: 1.3px;
+  border-top: 1px solid #e1e6da;
+  margin-top: 38px;
+  padding-top: 22px;
+}
+.ant-btn-primary {
+  font-weight: 500;
+}
+.ant-table-wrapper {
+  max-width: 100%;
+}
+/* 宽屏布局调整。 */
+@media (min-width: 1500px) {
+  .content {
+    padding-top: 45px;
+  }
+  .stat {
+    padding: 25px 28px;
+  }
+  .chart-card,
+  .observation {
+    min-height: 340px;
+  }
+}
+/* 中等宽度下缩减侧栏与间距。 */
+@media (max-width: 1150px) {
+  .sidebar {
+    width: 195px;
+    padding-left: 15px;
+    padding-right: 15px;
+  }
+  main {
+    margin-left: 195px;
+  }
+  .content {
+    padding: 26px;
+  }
+  .topbar {
+    padding: 0 26px;
+  }
+  .filter-keywords {
+    display: none;
+  }
+  .journey {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .writing-layout {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+  .topic-card {
+    padding: 18px;
+  }
+  .scope {
+    max-width: 200px;
+    text-align: right;
+  }
+  .stat {
+    padding: 17px;
+  }
+  .observation {
+    padding: 25px;
+  }
+  .heading h1 {
+    font-size: 25px;
+  }
+}
+/* 窄屏改为适合纵向阅读的布局；后段还有对应的局部覆盖。 */
+@media (max-width: 850px) {
+  .sidebar {
+    position: static;
+    width: 100%;
+    padding: 16px;
+    border: 0;
+  }
+  .brand {
+    font-size: 22px;
+  }
+  .brand-icon {
+    height: 38px;
+    width: 38px;
+  }
+  .brand small {
+    display: none;
+  }
+  .nav-caption,
+  .sidebar-note,
+  .local {
+    display: none;
+  }
+  nav {
+    display: flex;
+    gap: 5px;
+    margin-top: 15px;
+    overflow-x: auto;
+  }
+  nav a {
+    padding: 11px;
+    font-size: 12px;
+    white-space: nowrap;
+    gap: 7px;
+  }
+  nav a.active:after {
+    display: none;
+  }
+  main {
+    margin: 0;
+  }
+  .topbar {
+    height: 55px;
+    padding: 0 18px;
+  }
+  .content {
+    padding: 23px 18px;
+  }
+  .heading {
+    align-items: flex-start;
+  }
+  .heading h1 {
+    font-size: 24px;
+  }
+  .heading p {
+    font-size: 12px;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .analysis-grid,
+  .settings-layout,
+  .writing-layout {
+    grid-template-columns: 1fr;
+  }
+  .topic-grid {
+    grid-template-columns: 1fr;
+  }
+  .topic-card h3 {
+    min-height: 0;
+  }
+  .scope {
+    display: none;
+  }
+  .section-title h2 small {
+    display: none;
+  }
+  .table-toolbar {
+    flex-wrap: wrap;
+  }
+  .table-toolbar > .ant-input-affix-wrapper {
+    max-width: 100%;
+  }
+  .run-card {
+    flex-wrap: wrap;
+    padding: 18px;
+  }
+  .run-icon {
+    display: none;
+  }
+  .run-body .row {
+    flex-wrap: wrap;
+  }
+  .run-card > .ant-btn {
+    margin-left: auto;
+  }
+  .journey {
+    padding: 24px;
+    gap: 25px;
+  }
+  .journey-steps {
+    gap: 24px;
+  }
+  .journey h2 {
+    font-size: 20px;
+  }
+  .writing-list {
+    min-width: 0;
+  }
+  .editor-panel {
+    padding: 20px;
+  }
+  .heading > .ant-btn {
+    font-size: 12px;
+    padding: 0 12px;
+  }
+  .topbar > span {
+    font-size: 9px;
+  }
+  .topbar .ant-tag {
+    font-size: 9px;
+  }
+  .two {
+    gap: 12px;
+  }
+  .research-filter > .ant-select {
+    width: 100%;
+  }
+  .bar-row {
+    gap: 12px;
+  }
+  .settings-card {
+    padding: 24px;
+  }
+  .row {
+    min-width: 0;
+  }
+  .row h3 {
+    overflow-wrap: anywhere;
+  }
+  .editor-empty {
+    min-height: 400px;
+  }
+  .editor-panel {
+    min-height: 450px;
+  }
+}
+/* 尊重系统减少动态效果偏好。 */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* 标题表达规则卡片，不表示真实点击率。 */
+.pattern-card {
+  padding: 22px 25px;
+}
+.pattern-card p {
+  color: #657469;
+  font-size: 12px;
+  margin: 13px 0;
+}
+.pattern-card .row > span {
+  color: #28665d;
+  font-size: 13px;
+}
+.pattern-card > .ant-btn {
+  padding-left: 0;
+}
+@media (max-width: 450px) {
+  nav {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    overflow: visible;
+  }
+  nav a {
+    flex-direction: column;
+    gap: 5px;
+    padding: 9px 4px;
+    font-size: 11px;
+    white-space: normal;
+    text-align: center;
+  }
+  .heading {
+    gap: 12px;
+  }
+  .heading h1 {
+    font-size: 23px;
+  }
+}
+
+/* 桌面紧凑工作区；长文档仍保留独立阅读区域。 */
+/* 以下为桌面紧凑布局及后续细节覆盖；顺序决定 CSS 优先级，不宜直接调换。 */
+.model-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.model-help {
+  margin: 12px 0 0;
+}
+.preferences-card {
+  max-width: 850px;
+}
+.jobs-button {
+  position: fixed;
+  top: 19px;
+  right: 250px;
+  z-index: 12;
+}
+.run-pagination {
+  margin-top: 14px;
+  justify-content: flex-end;
+}
+.analysis-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.analysis-action p {
+  margin: 0;
+}
+/* 桌面压缩留白；长文编辑器保留自己的滚动阅读区域。 */
+@media (min-width: 851px) {
+  .sidebar {
+    padding-top: 28px;
+  }
+  .topbar {
+    height: 60px;
+    padding: 0 28px;
+  }
+  .content {
+    padding: 20px 28px 12px;
+  }
+  .heading {
+    margin-bottom: 16px;
+  }
+  .eyebrow {
+    margin-bottom: 7px;
+  }
+  h1 {
+    font-size: 25px;
+    margin-bottom: 6px;
+  }
+  .research-filter {
+    margin-bottom: 12px;
+  }
+  .stats {
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .stat {
+    padding: 12px 18px;
+  }
+  .stat strong {
+    font-size: 29px;
+    line-height: 1.35;
+  }
+  .section-title {
+    margin: 14px 0 12px;
+  }
+  .chart-card,
+  .observation {
+    padding: 20px;
+    min-height: 0;
+  }
+  .chart-card {
+    max-height: 320px;
+    overflow-y: auto;
+  }
+  .chart-card > .muted {
+    margin-bottom: 12px;
+  }
+  .bar-row {
+    padding: 9px 0;
+  }
+  .chart-foot {
+    margin-top: 10px;
+    padding-top: 10px;
+  }
+  .observation h2 {
+    font-size: 21px;
+    margin: 12px 0 8px;
+    line-height: 1.5;
+  }
+  .observation p {
+    margin-bottom: 6px;
+    max-width: none;
+  }
+  .observation-footer {
+    padding: 8px 0;
+  }
+  .topic-card {
+    padding: 18px;
+  }
+  .topic-card h3 {
+    margin: 12px 0 8px;
+  }
+  .topic-grid {
+    max-height: 350px;
+    overflow-y: auto;
+  }
+  .journey {
+    padding: 18px 24px;
+    gap: 24px;
+    margin: 0 0 16px;
+    flex-direction: row;
+  }
+  .journey h2 {
+    font-size: 20px;
+    margin-top: 8px;
+  }
+  .journey-steps {
+    gap: 24px;
+  }
+  .journey-steps b {
+    font-size: 24px;
+    margin-bottom: 5px;
+  }
+  .run-list {
+    gap: 10px;
+  }
+  .run-card {
+    padding: 14px 18px;
+  }
+  .run-icon {
+    padding: 12px;
+    font-size: 21px;
+  }
+  .run-body p {
+    margin: 5px 0 3px;
+  }
+  .samples {
+    padding: 14px 18px;
+  }
+  .table-toolbar {
+    margin-bottom: 12px;
+  }
+  .settings-card {
+    padding: 22px;
+    margin-bottom: 0;
+  }
+  .settings-heading {
+    margin-top: 16px;
+  }
+  .settings-card .ant-form-item {
+    margin-bottom: 16px;
+  }
+  .settings-layout {
+    gap: 18px;
+    grid-template-columns: 1.3fr 1fr;
+  }
+  .writing-layout {
+    height: calc(100dvh - 250px);
+    min-height: 420px;
+    gap: 18px;
+    grid-template-columns: 280px minmax(0, 1fr);
+  }
+  .writing-list {
+    overflow-y: auto;
+    padding-right: 8px;
+  }
+  .writing-topic {
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  .writing-topic h3 {
+    margin-top: 8px;
+  }
+  .editor-panel {
+    height: 100%;
+    min-height: 0;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+  .editor-panel > * {
+    flex-shrink: 0;
+  }
+  .editor-empty {
+    min-height: 0;
+    height: 100%;
+  }
+  .field-label {
+    margin: 12px 0 6px;
+  }
+  .editor-panel #brief {
+    min-height: 62px;
+    height: 62px;
+    resize: vertical;
+  }
+  .editor-toolbar {
+    margin: 12px 0 8px;
+  }
+  .markdown-editor.ant-input,
+  .markdown-preview {
+    flex: 1 1 120px;
+    min-height: 120px;
+    margin-top: 10px;
+    padding: 12px;
+    overflow-y: auto;
+    resize: none;
+  }
+  .editor-actions {
+    margin-top: 10px;
+  }
+  footer {
+    margin-top: 16px;
+    padding-top: 12px;
+  }
+}
+@media (max-width: 850px) {
+  .jobs-button {
+    position: static;
+    margin-bottom: 14px;
+  }
+  .analysis-action {
+    flex-wrap: wrap;
+  }
+}
+/* 较矮桌面（如 1366×768）进一步压缩间距，减少页面整体滚动。 */
+@media (min-width: 851px) and (max-height: 850px) {
+  .content {
+    padding-top: 14px;
+  }
+  .heading {
+    margin-bottom: 12px;
+  }
+  .stat {
+    padding: 9px 16px;
+  }
+  .stat strong {
+    font-size: 26px;
+  }
+  .chart-card,
+  .observation {
+    padding: 16px 20px;
+  }
+  .bar-row {
+    padding: 6px 0;
+  }
+  .chart-card > .muted {
+    margin-bottom: 6px;
+  }
+  .observation h2 {
+    font-size: 19px;
+    margin-top: 8px;
+  }
+  .section-title {
+    margin-top: 10px;
+  }
+  .settings-card {
+    padding: 18px 22px;
+  }
+  .settings-card .ant-form-item {
+    margin-bottom: 12px;
+  }
+  footer {
+    margin-top: 12px;
+    padding-top: 8px;
+  }
+}
+@media (min-width: 851px) {
+  .samples .ant-table-cell {
+    padding: 6px 10px !important;
+    font-size: 12px;
+  }
+  .samples .ant-table-pagination {
+    margin: 10px 0 0;
+  }
+  .samples .title-button {
+    padding: 0;
+  }
+  .samples .title-button small {
+    margin-top: 3px;
+  }
+}
+.research-status {
+  margin-bottom: 12px;
+}
+@media (min-width: 851px) {
+  .chart-card .ant-empty {
+    margin: 12px 0;
+  }
+  .samples .ant-empty {
+    margin: 12px 0;
+  }
+  .samples .ant-empty-image {
+    height: 40px;
+  }
+}
+@media (min-width: 851px) and (max-height: 850px) {
+  .research-status {
+    margin-bottom: 8px;
+  }
+  .analysis-action {
+    margin-bottom: 8px;
+  }
+}
+.analysis-action .analysis-state {
+  flex: 1;
+  min-width: 0;
+}
+.analysis-action > .ant-btn {
+  flex-shrink: 0;
+}
+@media (min-width: 851px) and (max-height: 850px) {
+  .samples {
+    padding: 12px 18px;
+  }
+  .samples .table-toolbar {
+    margin-bottom: 8px;
+  }
+  .samples .ant-table-pagination {
+    margin-top: 6px;
+  }
+}
+@media (min-width: 851px) and (max-height: 850px) {
+  .samples .table-toolbar {
+    margin-bottom: 4px;
+  }
+}
+/* 候选选题分页；正文只截断显示，完整内容通过页面弹窗阅读。 */
+.topic-pagination {
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+@media (min-width: 851px) {
+  .bar-row > span {
+    width: 190px;
+    flex-shrink: 0;
+  }
+  .observation-text,
+  .topic-angle {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+  }
+  .observation-text {
+    -webkit-line-clamp: 3;
+  }
+  .candidate-topics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: none;
+    overflow: visible;
+  }
+  .candidate-topics .topic-card {
+    padding: 14px 18px;
+  }
+  .candidate-topics h3 {
+    min-height: 0;
+    font-size: 16px;
+    line-height: 1.5;
+    margin: 8px 0;
+  }
+  .topic-angle {
+    -webkit-line-clamp: 2;
+    margin: 0 0 8px;
+  }
+  .candidate-topics .topic-bottom {
+    padding-top: 6px;
+  }
+}
+@media (min-width: 851px) {
+  .bar-row > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .candidate-topics h3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+@media (min-width: 851px) and (max-height: 850px) {
+  .heading .eyebrow { display: none; }
+  .stats .stat { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 2px 10px; padding: 12px 16px; }
+  .stats .stat-label { grid-column: 1; justify-content: flex-start; gap: 8px; }
+  .stats .stat strong { grid-column: 2; grid-row: 1 / span 2; align-self: center; font-size: 28px; line-height: 1; }
+  .stats .stat small { grid-column: 1; }
+}
+@media (min-width: 851px) and (max-height: 850px) {
+  .bar-row { padding-top: 5px; padding-bottom: 5px; }
+  .chart-foot { margin-top: 6px; padding-top: 6px; }
+}

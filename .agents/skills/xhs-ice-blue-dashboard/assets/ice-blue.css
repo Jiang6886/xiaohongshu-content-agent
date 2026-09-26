@@ -1,0 +1,54 @@
+/* Optional starting theme: scoped to the second visual direction. */
+.xhs-ice {
+  --ice-bg: #edf3f8;
+  --ice-layout: #e2ebf3;
+  --ice-panel: #f7fafe;
+  --ice-solid: #fff;
+  --ice-border: #cddcea;
+  --ice-primary: #2463c5;
+  --ice-highlight: #3688ff;
+  --ice-cyan: #78d4ea;
+  --ice-text: #25364a;
+  --ice-muted: #586c82;
+  --ice-selected: #e0edff;
+  --ice-control-border: #71849a;
+  background: var(--ice-bg);
+  color: var(--ice-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+}
+
+.xhs-ice .ice-panel {
+  background: var(--ice-panel);
+  border: 1px solid rgb(255 255 255 / 90%);
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgb(68 100 137 / 10%),
+    inset 0 1px 0 rgb(255 255 255 / 95%);
+}
+
+.xhs-ice .ice-data-surface {
+  background: var(--ice-solid);
+  color: var(--ice-text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Use only for a meaningful visualization area, never under prose or tables. */
+.xhs-ice .ice-overview-grid {
+  background-color: var(--ice-bg);
+  background-image: linear-gradient(rgb(75 123 167 / 5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(75 123 167 / 5%) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.xhs-ice :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--ice-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xhs-ice *, .xhs-ice *::before, .xhs-ice *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

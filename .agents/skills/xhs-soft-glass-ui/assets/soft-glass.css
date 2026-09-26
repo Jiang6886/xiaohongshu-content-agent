@@ -1,0 +1,78 @@
+/* Starter tokens; apply scoped classes instead of turning every element into glass. */
+:root {
+  --xhs-bg: #f7f4ee;
+  --xhs-surface: #fcfaf6;
+  --xhs-glass: rgb(255 255 255 / 66%);
+  --xhs-mint: #c9e2d9;
+  --xhs-teal-soft: #8dbeb3;
+  --xhs-peach: #efcfc7;
+  --xhs-primary: #28665d;
+  --xhs-primary-hover: #20564e;
+  --xhs-text: #293631;
+  --xhs-text-secondary: #59665f;
+  --xhs-border: #d9dfd6;
+  --xhs-control-border: #7b8981;
+  --xhs-radius-panel: 24px;
+  --xhs-radius-control: 12px;
+  --xhs-shadow: 8px 12px 24px rgb(61 84 71 / 10%),
+    -3px -3px 12px rgb(255 255 255 / 75%);
+}
+
+.xhs-workspace {
+  background: var(--xhs-bg);
+  color: var(--xhs-text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+  line-height: 1.6;
+}
+
+.xhs-glass-panel {
+  position: relative;
+  isolation: isolate;
+  border: 1px solid rgb(255 255 255 / 88%);
+  border-radius: var(--xhs-radius-panel);
+  background: var(--xhs-surface);
+  box-shadow: var(--xhs-shadow), inset 0 0 0 1px rgb(110 140 123 / 12%);
+}
+
+@supports ((backdrop-filter: blur(12px)) or (-webkit-backdrop-filter: blur(12px))) {
+  .xhs-glass-panel {
+    background: var(--xhs-glass);
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* Apply to selected summary/topic cards, not tables or editors. */
+.xhs-glass-panel--mint::before,
+.xhs-glass-panel--peach::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at 80% 90%, rgb(201 226 217 / 70%), transparent 72%);
+}
+
+.xhs-glass-panel--peach::before {
+  background: radial-gradient(ellipse at 80% 90%, rgb(239 207 199 / 55%), transparent 72%);
+}
+
+.xhs-data-surface {
+  background: var(--xhs-surface);
+  color: var(--xhs-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.xhs-workspace :where(button, a, input, textarea, select, [tabindex]):focus-visible {
+  outline: 2px solid var(--xhs-primary);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xhs-workspace *, .xhs-workspace *::before, .xhs-workspace *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

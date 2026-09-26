@@ -1,0 +1,9 @@
+Use case: ui-mockup
+Create a polished high fidelity desktop web application screenshot for a Chinese Xiaohongshu content research and original writing assistant. This is a visual design preview, not an implemented app. Wide landscape 16:10, crisp readable Simplified Chinese typography, straight-on flat UI, no device frame. Restrained realistic implementable dashboard, white cards, pale gray background, dark slate text, muted coral red primary buttons, subtle borders, generous spacing. No decorative illustrations. Left sidebar 210px titled "内容研究台", small subtitle "小红书选题助手". Four navigation items exactly: "研究任务", "样本与分析" (active), "选题与草稿", "设置". Bottom sidebar local status "本地工作区".
+Main page title "从样本中，发现值得写的选题" and small subtitle "AI 工具与个人效率 · 最近 7 天 · 演示数据". Upper right button "新建研究". Filter strip keyword chips "AI 办公" "效率工具" "个人知识库", action "查看采集范围". Four summary cards "有效样本" 128, "覆盖作者" 86, "话题分组" 8, "待选选题" 5. A compact information line says "仅反映本次采集样本，不代表全平台热度".
+Below two columns 60/40. Left white card "样本话题分布" with clean horizontal bars and exact labels "AI 办公提效" 42, "知识库搭建" 35, "工具实测" 29, "学习方法" 22. Right card "标题表达观察" with three neat rows "具体场景 + 结果", "亲身实测 + 对比", "问题 + 操作步骤". Small footer "互动表现不等于标题点击率".
+Lower section title "值得进一步研究的选题", right small text "查看全部 →". Three equal-width well-spaced topic cards:
+Card 1 tag "场景切入", heading "把重复周报交给 AI", subtitle "从真实工作流程出发", evidence "关联样本 18 篇", text button "查看证据 →".
+Card 2 tag "工具对比", heading "知识库工具怎么选", subtitle "围绕使用门槛做实测", evidence "关联样本 24 篇", text button "查看证据 →".
+Card 3 tag "经验分享", heading "我的 AI 学习工作流", subtitle "加入你的实践与判断", evidence "关联样本 12 篇", coral button "选择并写草稿".
+Keep all text clean and spacious. Footer tiny "界面概念稿 · 数据仅作展示". No growth charts, no fictitious clickthrough rates, no auto publish button, no official Xiaohongshu logo. Professional calm useful product UI with meticulous alignment.

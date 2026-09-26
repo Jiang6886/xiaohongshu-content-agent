@@ -1,0 +1,24 @@
+{
+  "research": {
+    "name": "手工导入格式示例（测试素材）",
+    "keywords": ["AI 学习"],
+    "audience": "希望入门的学习者",
+    "days": 7,
+    "limit": 20
+  },
+  "notes": [
+    {
+      "platform_id": "replace-with-platform-id",
+      "title": "请替换为你有权使用的真实素材标题",
+      "author": "请填写作者",
+      "body": "这是字段格式示例，不是真实小红书笔记。",
+      "topic": "未分类",
+      "format": "图文",
+      "likes": null,
+      "saves": null,
+      "comments": null,
+      "published_at": null,
+      "source_url": null
+    }
+  ]
+}
