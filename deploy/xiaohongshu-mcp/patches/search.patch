@@ -1,0 +1,99 @@
+--- a/xiaohongshu/search.go
++++ b/xiaohongshu/search.go
+@@ -10,7 +10,7 @@
+ 	"time"
+ 
+ 	"github.com/go-rod/rod"
+-	"github.com/sirupsen/logrus"
++	"github.com/go-rod/rod/lib/proto"
+ 	"github.com/xpzouying/xiaohongshu-mcp/errors"
+ 	"github.com/xpzouying/xiaohongshu-mcp/humanize"
+ )
+@@ -116,8 +116,11 @@
+ 
+ 	searchURL := makeSearchURL(keyword)
+ 	page.MustNavigate(searchURL)
+-	page.MustWaitStable()
+-	page.MustWait(`() => window.__INITIAL_STATE__ !== undefined`)
++	// Read the current document directly: early navigation can leave rod's cached
++	// window pointing at the previous execution context. Do not cache it during load.
++	if err := waitSearchReady(page, 25*time.Second); err != nil {
++		return nil, err
++	}
+ 	humanize.Delay(ctx, humanize.AfterNavigate)
+ 
+ 	if len(pending) > 0 {
+@@ -131,9 +134,6 @@
+ 		// 等待筛选面板出现
+ 		page.MustWait(`() => document.querySelector('div.filter-panel') !== null`)
+ 
+-		// 记下筛选前的结果，用来判断筛选后的数据什么时候到位
+-		before := readFeedIDs(page)
+-
+ 		// 指针先进面板，之后的移动都限制在面板内。
+ 		// 从按钮直接拉到选项的话，路径会有一段既不在按钮上、也还没进面板。
+ 		bounds, err := panelBounds(page)
+@@ -155,12 +155,15 @@
+ 				bounds = b
+ 			}
+ 			humanize.Delay(ctx, humanize.BeforeClick)
++			before := readFeedIDs(page)
+ 			if err := humanize.ClickNoWaitInside(option, bounds); err != nil {
+ 				return nil, fmt.Errorf("点击筛选选项「%s」失败: %w", pf.option, err)
+ 			}
+-		}
+-
+-		waitFeedsChanged(page, before, 15*time.Second)
++			if err := waitFeedsChanged(page, before, 15*time.Second); err != nil {
++				return nil, fmt.Errorf("筛选 %s: %w", pf.option, err)
++			}
++		}
++
+ 	}
+ 
+ 	result := page.MustEval(`() => {
+@@ -210,16 +213,16 @@
+ // MustWait(__INITIAL_STATE__ !== undefined) 等，而这个条件从首屏起就为真、
+ // 立即返回，等于没等——多个筛选项一起用时表现为只有一部分生效。
+ //
+-// 超时不报错：筛选已经点上了，宁可返回可能偏旧的数据，也不要整个搜索失败。
+-func waitFeedsChanged(page *rod.Page, before string, timeout time.Duration) {
++// 每个筛选项单独等待刷新，超时明确失败，不能把未筛选结果当成高互动样本。
++func waitFeedsChanged(page *rod.Page, before string, timeout time.Duration) error {
+ 	deadline := time.Now().Add(timeout)
+ 	for time.Now().Before(deadline) {
+ 		if now := readFeedIDs(page); now != "" && now != before {
+-			return
++			return nil
+ 		}
+ 		time.Sleep(300 * time.Millisecond)
+ 	}
+-	logrus.Warnf("筛选后等待结果刷新超时（%s），返回的可能是筛选前的数据", timeout)
++	return fmt.Errorf("MCP_FILTER_NOT_APPLIED: 筛选结果未确认刷新（%s），拒绝返回旧数据", timeout)
+ }
+ 
+ // panelBounds 取筛选面板当前占据的矩形。
+@@ -307,3 +310,23 @@
+ 	//https://www.xiaohongshu.com/search_result?keyword=%25E7%258E%258B%25E5%25AD%2590&source=web_explore_feed
+ 	return fmt.Sprintf("https://www.xiaohongshu.com/search_result?%s", values.Encode())
+ }
++
++// waitSearchReady checks the live document instead of a cached window object.
++func waitSearchReady(page *rod.Page, timeout time.Duration) error {
++	deadline := time.Now().Add(timeout)
++	for time.Now().Before(deadline) {
++		res, err := (proto.RuntimeEvaluate{
++			Expression:    `document.readyState === "complete" && !!window.__INITIAL_STATE__?.search?.feeds`,
++			ReturnByValue: true,
++		}).Call(page)
++		if err == nil && res.ExceptionDetails == nil && res.Result.Value.Bool() {
++			return nil
++		}
++		select {
++		case <-page.GetContext().Done():
++			return page.GetContext().Err()
++		case <-time.After(250 * time.Millisecond):
++		}
++	}
++	return fmt.Errorf("MCP_SEARCH_READY_TIMEOUT: 搜索页面初始化超时")
++}

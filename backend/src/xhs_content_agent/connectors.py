@@ -6,12 +6,27 @@ import json
 import re
 from datetime import datetime, timezone
 
+import httpx
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
 from .storage import Problem
 
 READ_TOOLS = {"check_login_status", "search_feeds", "get_feed_detail"}
+
+
+def mcp_problem(error):
+    """SDK 的任务组会包装异常；保留业务错误，避免把工具失败误报为断连。"""
+    if isinstance(error, BaseExceptionGroup):
+        errors = [mcp_problem(child) for child in error.exceptions]
+        return next((e for e in errors if e.code != "MCP_UNAVAILABLE"), errors[0])
+    if isinstance(error, Problem):
+        return error
+    if isinstance(error, (TimeoutError, httpx.TimeoutException)):
+        return Problem("MCP_TIMEOUT", "小红书 MCP 请求超时，请稍后重新研究", 503)
+    return Problem(
+        "MCP_UNAVAILABLE", "无法连接小红书 MCP，请检查服务地址和运行状态", 503
+    )
 
 
 # 解析 1.2万、1k 等展示值并记录精度；未知值保留 None，不能当成零。
@@ -113,6 +128,30 @@ class MCPConnector:
                         await session.initialize()
                         result = await session.call_tool(name, args)
                         if result.isError:
+                            # 上游浏览器等待页面超时也会通过工具错误返回。
+                            # 仅识别错误类别，不向前端暴露原始响应。
+                            error_text = "\n".join(
+                                x.text for x in result.content if x.type == "text"
+                            ).lower()
+                            if "mcp_filter_not_applied" in error_text:
+                                raise Problem(
+                                    "MCP_FILTER_NOT_APPLIED",
+                                    "小红书搜索筛选未确认生效，请稍后重试；未采用未筛选的结果",
+                                    503,
+                                )
+                            if any(
+                                s in error_text
+                                for s in (
+                                    "context deadline exceeded",
+                                    "timeout",
+                                    "timed out",
+                                )
+                            ):
+                                raise Problem(
+                                    "MCP_TIMEOUT",
+                                    "MCP 已连接，但小红书页面加载或工具执行超时，请稍后重新研究",
+                                    503,
+                                )
                             raise Problem(
                                 "MCP_TOOL_FAILED",
                                 "小红书工具执行失败，请检查登录或平台访问限制",
@@ -142,10 +181,8 @@ class MCPConnector:
                             )
         except Problem:
             raise
-        except Exception:
-            raise Problem(
-                "MCP_UNAVAILABLE", "无法访问小红书 MCP，请启动服务并检查登录", 503
-            ) from None
+        except Exception as error:
+            raise mcp_problem(error) from None
 
     # 检查已有登录态；此方法不会替用户完成扫码登录。
     async def login(self):

@@ -1,7 +1,9 @@
 name: shiye-mcp
 services:
   xiaohongshu-mcp:
-    image: xpzouying/xiaohongshu-mcp@sha256:5bc690d0c7907f069886ddeb6b37abbe4bdd37bd431975b914c7c27435b1b602
+    image: shiye/xiaohongshu-mcp:v2.5.5-search-fix1
+    build:
+      context: .
     platform: linux/amd64
     restart: unless-stopped
     ports:

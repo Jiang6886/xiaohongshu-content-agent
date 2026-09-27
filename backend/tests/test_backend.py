@@ -299,6 +299,12 @@ async def test_worker_analysis_evidence_and_draft(
         ]
         == "共同使用具体场景"
     )
+    # 页面刷新首先读取研究列表；报告可读不代表列表契约也能容纳分析后的字段。
+    response = client.get("/api/v1/research-runs")
+    assert response.status_code == 200
+    research = next(r for r in response.json()["items"] if r["id"] == id)
+    assert research["patterns"] == ai.generate.return_value[0]["patterns"]
+    assert research["status"] == expected_status
     t = store.list(topics)[0]
     ai.generate.return_value = (
         {"title": "草稿", "body": "# 草稿\n【待填写经历】"},
@@ -820,3 +826,86 @@ def test_retry_research_retains_scope_samples_and_history(client, app, state):
         == 409
     )
     assert len(store.list(jobs)) == 2
+
+
+@pytest.mark.asyncio
+async def test_search_retry_preserves_filters_and_counts_calls(
+    client, app, monkeypatch
+):
+    import xhs_content_agent.worker as module
+
+    monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
+    job_id = create(client).json()["job_id"]
+    connector = AsyncMock()
+    connector.search.side_effect = [Problem("MCP_TIMEOUT", "超时"), {"feeds": []}]
+    worker = Worker(app.state.store, connector=connector)
+    result = await worker.search_with_retry(job_id, "skill", 7, "最多收藏", "video")
+    assert result == {"feeds": []}
+    assert connector.search.await_count == 2
+    assert all(
+        c.args == ("skill", 7, "最多收藏", "video")
+        for c in connector.search.await_args_list
+    )
+    assert app.state.store.job(job_id)["usage"]["tool_calls"] == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "code,expected_calls",
+    [("MCP_TIMEOUT", 2), ("LOGIN_REQUIRED", 1), ("MCP_UNAVAILABLE", 1)],
+)
+async def test_search_retry_is_bounded(client, app, monkeypatch, code, expected_calls):
+    import xhs_content_agent.worker as module
+
+    monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
+    job_id = create(client).json()["job_id"]
+    connector = AsyncMock()
+    connector.search.side_effect = Problem(code, "失败")
+    with pytest.raises(Problem) as caught:
+        await Worker(app.state.store, connector=connector).search_with_retry(
+            job_id, "skill", 7, "最多点赞"
+        )
+    assert caught.value.code == code
+    assert connector.search.await_count == expected_calls
+
+
+@pytest.mark.asyncio
+async def test_search_retry_respects_budget(client, app, monkeypatch):
+    import xhs_content_agent.worker as module
+
+    monkeypatch.setattr(module.asyncio, "sleep", AsyncMock())
+    app.state.store.config.max_tool_calls = 1
+    job_id = create(client).json()["job_id"]
+    connector = AsyncMock()
+    connector.search.side_effect = Problem("MCP_TIMEOUT", "超时")
+    with pytest.raises(Problem) as caught:
+        await Worker(app.state.store, connector=connector).search_with_retry(
+            job_id, "skill", 7, "最多点赞"
+        )
+    assert caught.value.code == "TOOL_BUDGET_EXCEEDED"
+    assert connector.search.await_count == 1
+
+
+@pytest.mark.asyncio
+async def test_search_retry_honors_cancellation(client, app, monkeypatch):
+    import xhs_content_agent.worker as module
+    from sqlalchemy import update
+    from xhs_content_agent.storage import jobs
+
+    job_id = create(client).json()["job_id"]
+
+    async def cancel_during_backoff(*args):
+        with app.state.store.tx() as c:
+            c.execute(
+                update(jobs).where(jobs.c.id == job_id).values(cancel_requested=True)
+            )
+
+    monkeypatch.setattr(module.asyncio, "sleep", cancel_during_backoff)
+    connector = AsyncMock()
+    connector.search.side_effect = Problem("MCP_TIMEOUT", "超时")
+    with pytest.raises(Problem) as caught:
+        await Worker(app.state.store, connector=connector).search_with_retry(
+            job_id, "skill", 7, "最多收藏"
+        )
+    assert caught.value.code == "CANCELLED"
+    assert connector.search.await_count == 1

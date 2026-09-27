@@ -97,7 +97,25 @@ class Worker:
             )
         self.store.update_job(id, usage=usage)
 
-    # 按研究创建时保存的策略分派：高互动策略先汇总候选，旧策略按搜索顺序收样。
+    async def search_with_retry(self, id, keyword, days, sort, content_type="all"):
+        """只对瞬时搜索超时/筛选未刷新重试一次，保留筛选参数并计入工具预算。"""
+        for attempt in range(2):
+            self.account_tool(id)
+            try:
+                return await self.connector.search(keyword, days, sort, content_type)
+            except Problem as error:
+                if attempt or error.code not in {
+                    "MCP_TIMEOUT",
+                    "MCP_FILTER_NOT_APPLIED",
+                }:
+                    raise
+                log.warning(
+                    "MCP search retry: job=%s sort=%s code=%s", id, sort, error.code
+                )
+                await asyncio.sleep(max(2, self.config.collection_delay))
+                # account_tool 在下一次请求前再次检查取消及工具调用上限。
+
+    # 按创建时保存的策略分派：高互动策略先汇总候选，旧策略按搜索顺序收样。
     async def collection(self, id):
         job = self.store.job(id)
         run = self.store.get(runs, job["research_run_id"])
@@ -164,9 +182,8 @@ class Worker:
             sorts = list(dict.fromkeys([primary, "最多点赞", "最多收藏", "最多评论"]))
             for sort in sorts:
                 for keyword in run["keywords"]:
-                    self.account_tool(id)
-                    response = await self.connector.search(
-                        keyword, run["days"], sort, run.get("content_type", "all")
+                    response = await self.search_with_retry(
+                        id, keyword, run["days"], sort, run.get("content_type", "all")
                     )
                     feeds = response.get("feeds")
                     if not isinstance(feeds, list):
@@ -285,8 +302,7 @@ class Worker:
         failures = 0
         for keyword in run["keywords"]:
             for sort in ("最新", "最多收藏"):
-                self.account_tool(id)
-                response = await self.connector.search(keyword, run["days"], sort)
+                response = await self.search_with_retry(id, keyword, run["days"], sort)
                 feeds = response.get("feeds")
                 if not isinstance(feeds, list):
                     raise Problem(

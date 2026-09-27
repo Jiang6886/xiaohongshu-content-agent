@@ -190,6 +190,8 @@ class ResearchOut(ResearchInput):
     analysis_note: str = "尚未进行模型分析"
     analysis_coverage: list[str] = Field(default_factory=list)
     collection_summary: dict = Field(default_factory=dict)
+    # 分析完成后 worker 会保存共性；列表响应也必须声明，否则严格校验会返回 500。
+    patterns: list[ContentPattern] = Field(default_factory=list)
 
 
 # 公开任务状态与用量，不暴露内部 payload。
