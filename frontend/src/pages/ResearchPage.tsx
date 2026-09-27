@@ -55,16 +55,32 @@ export default function ResearchPage({
   onView,
   onCancel,
   onDelete,
+  onRetry,
 }: {
   db: Database;
   onCreate: () => void;
   onView: (id: string) => void;
   onCancel: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
+  onRetry: (jobId: string) => Promise<void>;
 }) {
   const { message, modal } = AntApp.useApp();
   const [page, setPage] = useState(1);
   const [deleting, setDeleting] = useState<string>();
+  const [retrying, setRetrying] = useState<string>();
+  // 沿用原研究的范围和筛选条件，新建执行任务；已有样本与历史消耗仍保留。
+  const retry = async (research: Research) => {
+    if (!research.job_id) return;
+    setRetrying(research.id);
+    try {
+      await onRetry(research.job_id);
+      message.success("已重新加入研究队列，已有样本保留");
+    } catch (e) {
+      message.error((e as Error).message);
+    } finally {
+      setRetrying(undefined);
+    }
+  };
   // 最后一页删除后回到有效页码，避免列表看起来为空但仍有其他研究。
   useEffect(() => {
     setPage((current) =>
@@ -227,6 +243,28 @@ export default function ResearchPage({
               )}
             </div>
             <div className="run-actions">
+              {!isDemo &&
+                r.job_id &&
+                ["failed", "partial", "cancelled"].includes(r.status) && (
+                  <Button
+                    icon={<ReloadOutlined />}
+                    aria-label="重新研究"
+                    loading={retrying === r.id}
+                    disabled={
+                      Boolean(retrying) ||
+                      Boolean(deleting) ||
+                      db.jobs?.some(
+                        (j) =>
+                          j.research_run_id === r.id &&
+                          activeStatuses.includes(j.status),
+                      )
+                    }
+                    title="沿用原研究条件，保留已有样本；后续模型调用使用当前模型配置"
+                    onClick={() => retry(r)}
+                  >
+                    重新研究
+                  </Button>
+                )}
               {activeStatuses.includes(r.status) ? (
                 <Button onClick={() => onCancel(r.id)}>取消任务</Button>
               ) : (
@@ -244,6 +282,7 @@ export default function ResearchPage({
                 loading={deleting === r.id}
                 disabled={
                   Boolean(deleting) ||
+                  Boolean(retrying) ||
                   activeStatuses.includes(r.status) ||
                   db.jobs?.some(
                     (j) =>

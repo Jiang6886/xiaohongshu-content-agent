@@ -442,3 +442,103 @@ test("顶部任务入口固定在布局内，研究 token 汇总保留未知用�
   await page.locator(".topbar .jobs-button").click();
   await expect(page.getByText("暂无进行中或需要处理的任务")).toBeVisible();
 });
+
+test("研究卡片可直接重试，提交失败后仍可再次点击", async ({
+  page,
+  request,
+}) => {
+  const accepted = await request.post("/api/v1/research-runs", {
+    headers: { "Idempotency-Key": "retry-ui-source" },
+    data: { name: "服务失败重试验收", keywords: ["测试"], audience: "测试" },
+  });
+  const { research_run_id: id, job_id: oldJob } = await accepted.json();
+  const original = await (
+    await request.get(`/api/v1/research-runs/${id}`)
+  ).json();
+  let queued = false,
+    attempts = 0;
+  const keys: string[] = [];
+  // 模拟外部服务失败后的公开状态；真实重试事务另由后端测试验证。
+  await page.route("**/api/v1/research-runs?*", (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            ...original,
+            job_id: queued ? "new-job" : oldJob,
+            status: queued ? "queued" : "failed",
+            progress: 0,
+            error: queued ? null : "模型服务暂时不可用",
+          },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 100,
+      },
+    }),
+  );
+  await page.route("**/api/v1/jobs?*", (route) =>
+    route.fulfill({
+      json: {
+        items: [
+          {
+            id: queued ? "new-job" : oldJob,
+            research_run_id: id,
+            kind: "research",
+            status: queued ? "queued" : "failed",
+            progress: 0,
+            cancel_requested: false,
+            error: null,
+            result_id: null,
+            created_at: original.created_at,
+            usage: {
+              reserved_tokens: 0,
+              input_tokens: null,
+              output_tokens: null,
+              tool_calls: 0,
+            },
+          },
+        ],
+        total: 1,
+        page: 1,
+        page_size: 100,
+      },
+    }),
+  );
+  await page.route(`**/api/v1/jobs/${oldJob}/retry`, (route) => {
+    attempts++;
+    keys.push(route.request().headers()["idempotency-key"]);
+    if (attempts === 1)
+      return route.fulfill({
+        status: 503,
+        json: { error: { message: "重试服务暂时不可用" } },
+      });
+    queued = true;
+    return route.fulfill({ status: 202, json: { job_id: "new-job" } });
+  });
+  await page.goto("/research");
+  const card = page
+    .locator(".run-card")
+    .filter({ hasText: "服务失败重试验收" });
+  await card.getByRole("button", { name: "重新研究", exact: true }).click();
+  await expect(
+    page.getByText("重试服务暂时不可用", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    card.getByRole("button", { name: "重新研究", exact: true }),
+  ).toBeEnabled();
+  await card.getByRole("button", { name: "重新研究", exact: true }).click();
+  await expect(card.getByText("等待执行", { exact: true })).toBeVisible();
+  await expect(
+    card.getByRole("button", { name: "重新研究", exact: true }),
+  ).toHaveCount(0);
+  await expect(card.getByRole("button", { name: "取消任务" })).toBeVisible();
+  expect(attempts).toBe(2);
+  expect(keys[0]).toBeTruthy();
+  expect(keys[1]).toBe(keys[0]);
+  expect(
+    (
+      await (await request.get("/api/v1/research-runs?page_size=100")).json()
+    ).items.filter((r: { name: string }) => r.name === "服务失败重试验收"),
+  ).toHaveLength(1);
+});

@@ -423,7 +423,8 @@ def create_app(config=None):
             new = store.enqueue(c, j["research_run_id"], j["kind"], payload)
             if j["kind"] == "research":
                 r = store.get(runs, j["research_run_id"], c)
-                r.update(job_id=new, status="queued", error=None)
+                # 新一轮执行从排队开始，旧样本与原任务用量保留供恢复和累计统计。
+                r.update(job_id=new, status="queued", progress=0, error=None)
                 store.put(c, runs, r["id"], r)
             return {"job_id": new}
 

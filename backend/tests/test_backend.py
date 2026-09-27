@@ -740,3 +740,83 @@ async def test_pattern_evidence_must_be_distinct_input_notes(app, client, invali
     assert store.job(job)["status"] == "failed"
     assert not store.list(topics)
     assert not store.get(runs, run_id).get("patterns")
+
+
+@pytest.mark.parametrize("state", ["failed", "partial", "cancelled"])
+def test_retry_research_retains_scope_samples_and_history(client, app, state):
+    from xhs_content_agent.storage import jobs
+
+    result = client.post(
+        "/api/v1/research-runs",
+        headers={"Idempotency-Key": "retry-source"},
+        json={
+            "name": "恢复研究",
+            "keywords": ["AI", "工具"],
+            "audience": "测试读者",
+            "days": 30,
+            "limit": 6,
+            "strategy": "engagement",
+            "rank_by": "saves",
+            "content_type": "video",
+            "min_saves": 500,
+        },
+    ).json()
+    run_id, old_job = result["research_run_id"], result["job_id"]
+    store = app.state.store
+    saved = store.store_note(run_id, normalize(detail(), "AI", 0), {"keyword": "AI"})
+    store.update_job(
+        old_job,
+        state,
+        progress=85,
+        error="外部服务失败",
+        usage={
+            "reserved_tokens": 1000,
+            "input_tokens": 12,
+            "output_tokens": 8,
+            "tool_calls": 2,
+        },
+    )
+    original = store.get(runs, run_id)
+    settings = store.preference()
+    settings["budget"] = 30000
+    assert client.put("/api/v1/settings", json=settings).status_code == 200
+    response = client.post(
+        f"/api/v1/jobs/{old_job}/retry", headers={"Idempotency-Key": "retry-click"}
+    )
+    assert response.status_code == 202
+    new_job = response.json()["job_id"]
+    updated = store.get(runs, run_id)
+    assert updated["job_id"] == new_job and updated["progress"] == 0
+    assert updated["status"] == "queued" and updated["error"] is None
+    for key in [
+        "id",
+        "created_at",
+        "name",
+        "keywords",
+        "audience",
+        "days",
+        "limit",
+        "strategy",
+        "rank_by",
+        "content_type",
+        "min_saves",
+    ]:
+        assert updated[key] == original[key]
+    assert store.list(notes)[0]["id"] == saved["id"]
+    assert store.job(old_job)["usage"]["input_tokens"] == 12
+    assert store.job(new_job)["payload"]["settings"]["budget"] == 30000
+    assert store.job(new_job)["usage"]["reserved_tokens"] == 0
+    assert (
+        client.post(
+            f"/api/v1/jobs/{old_job}/retry", headers={"Idempotency-Key": "retry-click"}
+        ).json()["job_id"]
+        == new_job
+    )
+    assert (
+        client.post(
+            f"/api/v1/jobs/{old_job}/retry",
+            headers={"Idempotency-Key": "duplicate-click"},
+        ).status_code
+        == 409
+    )
+    assert len(store.list(jobs)) == 2

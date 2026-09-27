@@ -228,6 +228,10 @@ function Shell() {
                   <ResearchPage
                     db={db}
                     onCreate={() => setCreating(true)}
+                    onRetry={async (jobId) => {
+                      await backend.retry(jobId);
+                      await reload();
+                    }}
                     onDelete={async (id) => {
                       await api.deleteResearch(id);
                       if (active?.id === id) {
