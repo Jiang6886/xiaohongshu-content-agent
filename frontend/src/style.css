@@ -538,6 +538,12 @@ h1 {
   gap: 4px;
   flex-shrink: 0;
 }
+/* 新建研究的筛选门槛紧凑排列，窄屏可自动换行。 */
+.sampling-thresholds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .run-card {
   display: flex;
   gap: 20px;
@@ -943,6 +949,14 @@ footer {
   }
   .section-title h2 small {
     display: none;
+  }
+  .analysis-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .analysis-tabs .ant-segmented-item-label {
+    font-size: 12px;
+    padding-inline: 8px;
   }
   .table-toolbar {
     flex-wrap: wrap;

@@ -75,6 +75,7 @@ export default function Analysis({
   const [q, setQ] = useState("");
   const { message, modal } = AntApp.useApp();
   const [topicPage, setTopicPage] = useState(1);
+  const [patternPage, setPatternPage] = useState(1);
   const [generating, setGenerating] = useState(false);
   const report = active ? db.reports?.[active.id] : undefined;
   // 切换研究时重置搜索、分组和选题页码，避免上一项研究的过滤条件残留。
@@ -82,6 +83,7 @@ export default function Analysis({
     setGroup("全部话题");
     setQ("");
     setTopicPage(1);
+    setPatternPage(1);
   }, [active?.id]);
   // 只提交重新分析任务；结果随父组件轮询刷新，不阻塞页面等待模型。
   const analyze = async () => {
@@ -144,6 +146,38 @@ export default function Analysis({
             <span key={k}># {k}</span>
           ))}
         </div>
+        {active?.strategy === "engagement" && (
+          <Button
+            size="small"
+            onClick={() =>
+              modal.info({
+                title: "本次高互动筛选",
+                content: (
+                  <>
+                    <p>
+                      {active.collection_summary?.note ??
+                        "任务尚未完成候选筛选"}
+                    </p>
+                    <p>
+                      任一门槛达标：点赞 {active.min_likes ?? 1000} / 收藏{" "}
+                      {active.min_saves ?? 300} / 评论{" "}
+                      {active.min_comments ?? 100}（0 为关闭）。
+                    </p>
+                    <p>
+                      {active.collection_summary?.scope ??
+                        "没有点击量、曝光量和涨粉量。仅分析文字与评论，不分析图片或视频画面。"}
+                    </p>
+                    <p>
+                      入选来自有限候选池，不代表全站排名。重试保留已有样本并补足剩余名额。
+                    </p>
+                  </>
+                ),
+              })
+            }
+          >
+            筛选依据
+          </Button>
+        )}
       </div>
       {isDemo && active && active.status !== "completed" && (
         <Alert
@@ -242,9 +276,10 @@ export default function Analysis({
       </div>
       <div className="section-title">
         <Segmented
+          className="analysis-tabs"
           value={mode}
           onChange={setMode}
-          options={["研究概览", "标题观察", "候选选题", "样本明细"]}
+          options={["研究概览", "共性爆点", "标题观察", "候选选题", "样本明细"]}
         />
         <span className="scope">
           <InfoCircleOutlined /> 仅反映本次样本，不代表全平台热度
@@ -252,6 +287,90 @@ export default function Analysis({
       </div>
       {mode !== "样本明细" ? (
         <>
+          {mode === "共性爆点" && (
+            <>
+              <p className="muted">
+                依据文字和部分评论形成的假设，不代表点击或涨粉因果；封面、图片内容、视频节奏尚未分析。
+                {report?.analysis_stale ? "样本已变化，请重新分析。" : ""}
+              </p>
+              {!report?.patterns?.length ? (
+                <Empty
+                  description={
+                    isDemo
+                      ? "演示模式没有真实共性分析"
+                      : "尚无跨样本共性。生成分析后查看；材料不足时不会编造共性。"
+                  }
+                />
+              ) : (
+                <>
+                  <div className="topic-grid candidate-topics">
+                    {report.patterns
+                      .slice((patternPage - 1) * 2, patternPage * 2)
+                      .map((p, i) => (
+                        <section className="glass topic-card" key={i}>
+                          <Tag>证据支持的观察</Tag>
+                          <h3>{p.observation}</h3>
+                          <p className="topic-angle">
+                            可能原因：{p.hypothesis}
+                          </p>
+                          <Button
+                            onClick={() => {
+                              const dialog = modal.info({
+                                title: "共性与创作实验",
+                                width: 680,
+                                content: (
+                                  <>
+                                    <h3>观察到的共性</h3>
+                                    <p>{p.observation}</p>
+                                    <h3>可能原因（待验证）</h3>
+                                    <p>{p.hypothesis}</p>
+                                    <h3>用自己的账号验证</h3>
+                                    <p>{p.experiment}</p>
+                                    <h3>来源证据</h3>
+                                    {p.evidence_ids.map((id) => (
+                                      <Button
+                                        key={id}
+                                        type="link"
+                                        onClick={() => {
+                                          const n = notes.find(
+                                            (n) => n.id === id,
+                                          );
+                                          if (n) {
+                                            dialog.destroy();
+                                            inspect(n);
+                                          }
+                                        }}
+                                      >
+                                        {notes.find((n) => n.id === id)
+                                          ?.title ?? "样本"}
+                                      </Button>
+                                    ))}
+                                    <p className="muted">
+                                      只观察高互动样本会产生幸存者偏差。请与普通内容对照，发布后用自己账号的实际数据验证；不保证爆款。
+                                    </p>
+                                  </>
+                                ),
+                              });
+                            }}
+                          >
+                            查看依据与实验
+                          </Button>
+                        </section>
+                      ))}
+                  </div>
+                  <Pagination
+                    className="topic-pagination"
+                    current={patternPage}
+                    onChange={setPatternPage}
+                    total={report.patterns.length}
+                    pageSize={2}
+                    showSizeChanger={false}
+                    hideOnSinglePage
+                  />
+                </>
+              )}
+            </>
+          )}
           {mode === "研究概览" && (
             <div className="analysis-grid">
               <section className="glass chart-card">

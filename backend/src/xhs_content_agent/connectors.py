@@ -157,13 +157,16 @@ class MCPConnector:
             )
 
     # 七天条件交给平台筛选；三十天范围还需 worker 按发布时间本地过滤。
-    async def search(self, keyword, days, sort):
+    async def search(self, keyword, days, sort, content_type="all"):
         return await self.call(
             "search_feeds",
             {
                 "keyword": keyword,
                 "filters": {
                     "sort_by": sort,
+                    "note_type": {"all": "不限", "image": "图文", "video": "视频"}[
+                        content_type
+                    ],
                     "publish_time": "一周内" if days == 7 else "不限",
                 },
             },

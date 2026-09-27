@@ -207,7 +207,11 @@ test("删除研究：保留、确认、末页回退与持久化", async ({ page,
   await page.goto("/research");
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.locator(".run-card").first()).toBeVisible();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
   // 删除最新项，先验证关闭确认框不会发出删除操作。
   const card = page.locator(".run-card").filter({ hasText: "删除验收-2" });
   await card.getByRole("button", { name: "删除研究" }).click();
@@ -263,4 +267,92 @@ test("删除研究：保留、确认、末页回退与持久化", async ({ page,
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+});
+
+test("新研究默认高互动，支持类型和门槛并持久化", async ({ page, request }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/research");
+  await page.getByRole("button", { name: "新建研究" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("高互动筛选（爆款候选）");
+  await page.getByLabel("研究名称", { exact: true }).fill("高互动配置验收");
+  await page.getByText("高互动门槛与排序（可调整）", { exact: true }).click();
+  await page.getByLabel("最低点赞", { exact: true }).fill("2000");
+  await page.getByLabel("最低收藏", { exact: true }).fill("500");
+  await page.getByLabel("最低评论", { exact: true }).fill("200");
+  const responsePromise = page.waitForResponse(
+    (r) =>
+      r.url().endsWith("/api/v1/research-runs") &&
+      r.request().method() === "POST",
+  );
+  await dialog.getByRole("button", { name: "开始研究", exact: true }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(202);
+  const { research_run_id: id } = await response.json();
+  const data = await (await request.get(`/api/v1/research-runs/${id}`)).json();
+  expect(data.strategy).toBe("engagement");
+  expect(data.content_type).toBe("all");
+  expect([data.min_likes, data.min_saves, data.min_comments]).toEqual([
+    2000, 500, 200,
+  ]);
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.getByRole("link", { name: "样本与分析" }).click();
+  await page.getByText("共性爆点", { exact: true }).click();
+  await expect(
+    page.getByText("尚无跨样本共性。生成分析后查看；材料不足时不会编造共性。"),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("共性结果区分观察与假设并能追溯样本", async ({ page, request }) => {
+  const imported = await request.post("/api/v1/imports", {
+    headers: { "Idempotency-Key": "pattern-ui" },
+    data: {
+      research: {
+        name: "共性界面验收",
+        keywords: ["测试"],
+        audience: "测试",
+        limit: 2,
+      },
+      notes: [
+        { platform_id: "pattern-a", title: "证据标题甲" },
+        { platform_id: "pattern-b", title: "证据标题乙" },
+      ],
+    },
+  });
+  const id = (await imported.json()).research_run_id;
+  const notes = (
+    await (await request.get(`/api/v1/research-runs/${id}/notes`)).json()
+  ).items;
+  // 只模拟模型分析结果；研究与证据仍来自隔离后端，避免真实模型费用。
+  await page.route(`**/api/v1/research-runs/${id}/report`, async (route) => {
+    const response = await route.fetch();
+    const body = await response.json();
+    body.patterns = [
+      {
+        observation: "共同使用具体场景",
+        hypothesis: "可能降低理解成本",
+        experiment: "对照两种原创标题",
+        evidence_ids: notes.map((n: { id: string }) => n.id),
+      },
+    ];
+    await route.fulfill({ response, json: body });
+  });
+  await page.addInitScript(
+    (id) => sessionStorage.setItem("xhs-active-run", id),
+    id,
+  );
+  await page.goto("/analysis");
+  await page.getByText("共性爆点", { exact: true }).click();
+  await page.getByRole("button", { name: "查看依据与实验" }).click();
+  await expect(page.getByRole("dialog")).toContainText("可能原因（待验证）");
+  await expect(page.getByRole("dialog")).toContainText("对照两种原创标题");
+  await page.getByRole("button", { name: "证据标题甲", exact: true }).click();
+  await expect(
+    page.getByRole("heading", { name: "证据标题甲", exact: true }),
+  ).toBeVisible();
 });

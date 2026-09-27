@@ -37,6 +37,7 @@ import {
   Spin,
   Popconfirm,
   Switch,
+  Collapse,
 } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import {
@@ -147,7 +148,12 @@ function Shell() {
       <aside className="sidebar">
         <a href="/analysis" className="brand">
           <span className="brand-icon">
-            <img src={studioLogo} alt="白熊工作室 Logo" width={1254} height={1254} />
+            <img
+              src={studioLogo}
+              alt="白熊工作室 Logo"
+              width={1254}
+              height={1254}
+            />
           </span>
           <span>
             拾叶<small>白熊工作室 · 内容研究台</small>
@@ -295,6 +301,9 @@ function Shell() {
       </main>
       <Modal
         title="开始一项新的研究"
+        centered
+        width={640}
+        styles={{ body: { maxHeight: "calc(100dvh - 180px)", overflowY: "auto", paddingRight: 4 } }}
         open={creating}
         onCancel={() => setCreating(false)}
         confirmLoading={busy}
@@ -315,6 +324,12 @@ function Shell() {
             audience: "对 AI 感兴趣的初学者",
             days: 7,
             limit: 20,
+            strategy: "engagement",
+            rank_by: "balanced",
+            content_type: "all",
+            min_likes: 1000,
+            min_saves: 300,
+            min_comments: 100,
           }}
           onFinish={async (values) => {
             setBusy(true);
@@ -376,6 +391,72 @@ function Shell() {
               <InputNumber min={1} max={100} />
             </Form.Item>
           </div>
+          <div className="two">
+            <Form.Item name="strategy" label="采集策略">
+              <Select
+                options={[
+                  { value: "engagement", label: "高互动筛选（爆款候选）" },
+                  { value: "recent", label: "最新内容探索（旧策略）" },
+                ]}
+              />
+            </Form.Item>
+            <Form.Item name="content_type" label="内容类型（高互动策略）">
+              <Select
+                options={[
+                  { value: "all", label: "图文和视频" },
+                  { value: "image", label: "仅图文" },
+                  { value: "video", label: "仅视频" },
+                ]}
+              />
+            </Form.Item>
+          </div>
+          <Collapse
+            size="small"
+            items={[
+              {
+                key: "sampling",
+                label: "高互动门槛与排序（可调整）",
+                children: (
+                  <>
+                    <Form.Item name="rank_by" label="入选排序">
+                      <Select
+                        options={[
+                          {
+                            value: "balanced",
+                            label: "点赞 / 收藏 / 评论均衡",
+                          },
+                          { value: "likes", label: "点赞优先" },
+                          { value: "saves", label: "收藏优先" },
+                          { value: "comments", label: "评论优先" },
+                        ]}
+                      />
+                    </Form.Item>
+                    <div className="sampling-thresholds">
+                      <Form.Item name="min_likes" label="最低点赞">
+                        <InputNumber min={0} max={100000000} />
+                      </Form.Item>
+                      <Form.Item name="min_saves" label="最低收藏">
+                        <InputNumber min={0} max={100000000} />
+                      </Form.Item>
+                      <Form.Item name="min_comments" label="最低评论">
+                        <InputNumber min={0} max={100000000} />
+                      </Form.Item>
+                    </div>
+                    <p className="muted">
+                      任一开启的门槛达标即可，0
+                      表示关闭该项；全部关闭时至少有一项互动大于
+                      0。先跨关键词搜索三种互动排序，再核验最多 100
+                      篇候选详情；不足不凑数。均衡排序为三项 log(1 + 互动数)
+                      之和。旧策略不应用这些筛选。
+                    </p>
+                  </>
+                ),
+              },
+            ]}
+          />
+          <p className="muted">
+            可采集视频与图文的标题、正文、互动数及部分评论；当前不读取图片内容和视频画面，没有点击量、曝光量或涨粉量。演示模式仍使用虚构样本。
+          </p>
         </Form>
       </Modal>
       <Drawer
@@ -387,6 +468,7 @@ function Shell() {
         {note && (
           <>
             <Tag>{isDemo ? "虚构样本" : "来源证据"}</Tag>
+            <Tag>{note.format}</Tag>
             <h2>{note.title}</h2>
             <p className="muted">
               {note.author} · {displayDate(note.published_at)}
@@ -418,6 +500,9 @@ function Shell() {
                   {note.comment_coverage?.complete
                     ? "已完整加载"
                     : "仅为部分样本"}
+                </p>
+                <p className="muted">
+                  当前分析依据为文字和部分评论，尚未分析图片或视频画面。点击量、曝光量及单篇涨粉量未获取。
                 </p>
                 {note.comment_samples?.map((c) => (
                   <blockquote key={c.id}>{c.content}</blockquote>

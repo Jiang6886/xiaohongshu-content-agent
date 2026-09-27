@@ -15,6 +15,7 @@ from .connectors import MCPConnector, normalize
 from .intelligence import Intelligence
 from .model_settings import resolve
 from .schemas import AnalysisOutput, DraftOutput
+from .sampling import eligible, score, round_robin
 from .storage import (
     TERMINAL,
     Problem,
@@ -96,9 +97,184 @@ class Worker:
             )
         self.store.update_job(id, usage=usage)
 
-    # 检查登录 → 多关键词搜索 → 去重取详情 → 保存样本 → 模型分析。
-    # 总样本上限由所有关键词共享，达到上限即停止，不保证各关键词数量相等。
+    # 按研究创建时保存的策略分派：高互动策略先汇总候选，旧策略按搜索顺序收样。
     async def collection(self, id):
+        job = self.store.job(id)
+        run = self.store.get(runs, job["research_run_id"])
+        if run.get("strategy") == "engagement":
+            return await self.collection_engagement(id)
+        return await self.collection_recent(id)
+
+    # 先搜索所有关键词的三种高互动排序，再均衡读取候选详情，最后按实测指标选样。
+    async def collection_engagement(self, id):
+        job = self.store.job(id)
+        run = self.store.get(runs, job["research_run_id"])
+        prefs = job["payload"]["settings"]
+        cutoff = datetime.now(timezone.utc) - timedelta(days=run["days"])
+        self.store.update_job(id, "collecting", error=None, total_count=run["limit"])
+        existing = self.store.list(notes, notes.c.run_id == run["id"])
+        known = {n["platform_id"] for n in existing}
+        qualified, groups = [], []
+        summary = {
+            "strategy": "engagement",
+            "searched": 0,
+            "searches_planned": len(run["keywords"]) * 3,
+            "candidates": 0,
+            "reviewed": 0,
+            "qualified": 0,
+            "selected": len(existing),
+            "requested": run["limit"],
+            "complete": False,
+            "rank_by": run.get("rank_by", "balanced"),
+            "scope": "仅在返回的候选池内筛选；无点击量、曝光量、涨粉量；未分析图片或视频画面。",
+        }
+
+        def save_selection():
+            # 重试保留此前已落库的样本，只补足剩余额度；重新比较全部内容应新建研究。
+            ranked = sorted(
+                qualified,
+                key=lambda x: (
+                    score(x[0], run.get("rank_by", "balanced")),
+                    x[0]["platform_id"],
+                ),
+                reverse=True,
+            )
+            for note, provenance in ranked[: max(0, run["limit"] - len(existing))]:
+                self.store.store_note(run["id"], note, provenance)
+            summary["qualified"] = len(qualified)
+            summary["selected"] = len(
+                self.store.list(notes, notes.c.run_id == run["id"])
+            )
+            summary["note"] = (
+                f"搜索 {summary['searched']}/{summary['searches_planned']} 组，候选 {summary['candidates']} 篇，本次核验 {summary['reviewed']} 篇、达标 {summary['qualified']} 篇；累计入选 {summary['selected']}/{run['limit']} 篇。未达门槛不补齐。"
+            )
+            with self.store.tx() as c:
+                latest = self.store.get(runs, run["id"], c)
+                latest["collection_summary"] = summary
+                self.store.put(c, runs, run["id"], latest)
+
+        try:
+            self.account_tool(id)
+            await self.connector.login()
+            primary = {
+                "likes": "最多点赞",
+                "saves": "最多收藏",
+                "comments": "最多评论",
+            }.get(run.get("rank_by"), "最多点赞")
+            sorts = list(dict.fromkeys([primary, "最多点赞", "最多收藏", "最多评论"]))
+            for sort in sorts:
+                for keyword in run["keywords"]:
+                    self.account_tool(id)
+                    response = await self.connector.search(
+                        keyword, run["days"], sort, run.get("content_type", "all")
+                    )
+                    feeds = response.get("feeds")
+                    if not isinstance(feeds, list):
+                        raise Problem(
+                            "MCP_SCHEMA_CHANGED",
+                            "搜索结果结构异常，请检查 MCP 版本",
+                            503,
+                        )
+                    groups.append(
+                        [
+                            {
+                                "feed": f,
+                                "provenance": {
+                                    "keyword": keyword,
+                                    "sort": sort,
+                                    "rank": rank + 1,
+                                    "observed_at": now(),
+                                },
+                            }
+                            for rank, f in enumerate(feeds)
+                            if isinstance(f, dict)
+                            and f.get("id")
+                            and f.get("xsecToken")
+                            and f.get("modelType", "note") == "note"
+                        ]
+                    )
+                    summary["searched"] += 1
+                    self.store.update_job(
+                        id,
+                        progress=int(
+                            20 * summary["searched"] / summary["searches_planned"]
+                        ),
+                    )
+                    await asyncio.sleep(self.config.collection_delay)
+            pool = list(round_robin(groups))
+            summary["candidates"] = len(pool)
+            # 候选详情预算独立于最终样本上限，并受全局 MCP 次数限制约束。
+            available = max(
+                0,
+                self.config.max_tool_calls - self.store.job(id)["usage"]["tool_calls"],
+            )
+            detail_limit = min(max(30, run["limit"] * 3), 100, available)
+            summary["detail_limit"] = detail_limit
+            failures = 0
+            for item in pool:
+                if item["feed"]["id"] in known:
+                    continue
+                if summary["reviewed"] >= detail_limit:
+                    break
+                self.account_tool(id)
+                summary["reviewed"] += 1
+                try:
+                    raw = await self.connector.detail(
+                        item["feed"], prefs["comment_limit"]
+                    )
+                    note = normalize(
+                        raw, item["provenance"]["keyword"], prefs["comment_limit"]
+                    )
+                    if note["platform_id"] != str(item["feed"]["id"]):
+                        raise Problem(
+                            "MCP_SCHEMA_CHANGED", "详情与搜索结果 ID 不一致", 503
+                        )
+                    if eligible(note, run, cutoff):
+                        qualified.append((note, item["provenance"]))
+                except Problem as e:
+                    if e.code in {"CANCELLED", "LOGIN_REQUIRED", "MCP_UNAVAILABLE"}:
+                        raise
+                    failures += 1
+                    if failures >= 3:
+                        raise Problem(
+                            "COLLECTION_INTERRUPTED",
+                            "累计三条详情读取失败；已核验的达标材料保留",
+                            503,
+                        )
+                self.store.update_job(
+                    id,
+                    progress=20
+                    + int(
+                        55 * summary["reviewed"] / max(1, min(detail_limit, len(pool)))
+                    ),
+                    completed_count=min(run["limit"], len(existing) + len(qualified)),
+                )
+                await asyncio.sleep(self.config.collection_delay)
+            self.store.check_cancel(id)
+            summary["complete"] = True
+        except Problem:
+            save_selection()
+            raise
+        save_selection()
+        if not summary["selected"]:
+            raise Problem(
+                "NO_QUALIFIED_SAMPLES",
+                "候选中没有满足时间、类型和互动门槛的样本；可调整范围或门槛，不会用低互动内容补齐。",
+            )
+        self.store.update_job(
+            id, "cleaning", progress=80, completed_count=summary["selected"]
+        )
+        if not resolve(self.config).model_configured:
+            raise Problem(
+                "MODEL_NOT_CONFIGURED",
+                "达标样本已保存；配置模型后可分析共性与选题。",
+                503,
+            )
+        await self.analysis(id)
+        return run["id"]
+
+    # 兼容旧研究：总上限由关键词共享，收满即停，不能据此称为高互动样本。
+    async def collection_recent(self, id):
         job = self.store.job(id)
         run = self.store.get(runs, job["research_run_id"])
         prefs = job["payload"]["settings"]
@@ -215,10 +391,23 @@ class Worker:
         for n in candidates:
             item = {
                 k: n.get(k)
-                for k in ["id", "title", "topic", "likes", "saves", "comments"]
+                for k in [
+                    "id",
+                    "title",
+                    "topic",
+                    "likes",
+                    "saves",
+                    "comments",
+                    "format",
+                    "published_at",
+                    "author_id",
+                    "comment_coverage",
+                    "media_analyzed",
+                ]
             }
-            item["body"] = n["body"][:400]
-            item["comment_samples"] = n.get("comment_samples", [])[:3]
+            item["body"] = n["body"][:1200]
+            item["body_truncated"] = len(n["body"]) > 1200
+            item["comment_samples"] = n.get("comment_samples", [])[:6]
             cost = len(json.dumps(item, ensure_ascii=False).encode())
             if used + cost > cap:
                 break
@@ -286,7 +475,7 @@ class Worker:
             id,
             AnalysisOutput,
             {
-                "task": "对提供的样本逐条给出主题分类，并提出最多五个适合作者的原创选题；evidence_ids 只能使用样本 ID。不是对全站热度的判断。",
+                "task": "对提供的样本逐条给出主题分类，并提出最多五个适合作者的原创选题；evidence_ids 只能使用样本 ID。不是对全站热度的判断。同时提炼最多五条跨样本共性 patterns，每条 observation 描述可观察的标题、正文或评论共性，hypothesis 解释可能满足的需求或情绪，experiment 提出可验证的原创内容实验。每条共性至少引用两条不同样本，样本不足或无共性时返回空数组。不得声称未读取的封面、图片、视频画面或节奏有什么特征。没有曝光和涨粉数据，不能推断点击率、涨粉效果或成功因果；高互动样本存在幸存者偏差，实验要与自己账号的普通内容对照。",
                 "audience": r["audience"],
                 "author": prefs["author"],
                 "notes": sample,
@@ -299,6 +488,13 @@ class Worker:
         ) != len(ids):
             raise Problem(
                 "INVALID_CLASSIFICATION", "模型分类未完整覆盖所提供的样本", 502
+            )
+        if any(
+            len(set(p.evidence_ids)) < 2 or not set(p.evidence_ids) <= ids
+            for p in result.patterns
+        ):
+            raise Problem(
+                "INVALID_EVIDENCE", "共性分析必须引用至少两条不同的已提供样本", 502
             )
         with self.store.tx() as c:
             self.store.check_cancel(id)
@@ -328,6 +524,7 @@ class Worker:
                 analysis_stale=False,
                 analysis_note=f"已对 {len(ids)} 条有效样本进行模型分类与选题分析",
                 analysis_coverage=sorted(ids),
+                patterns=[p.model_dump() for p in result.patterns],
             )
             self.store.put(c, runs, r["id"], latest)
         return r["id"]

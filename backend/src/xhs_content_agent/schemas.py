@@ -18,6 +18,13 @@ class ResearchInput(Strict):
     audience: str = Field(min_length=1, max_length=500)
     days: Literal[7, 30] = 7
     limit: int = Field(default=20, ge=1, le=100)
+    # 旧接口保留原采样默认值；新建研究表单显式选择高互动策略。
+    strategy: Literal["recent", "engagement"] = "recent"
+    rank_by: Literal["balanced", "likes", "saves", "comments"] = "balanced"
+    content_type: Literal["all", "image", "video"] = "all"
+    min_likes: int = Field(default=1000, ge=0, le=100000000)
+    min_saves: int = Field(default=300, ge=0, le=100000000)
+    min_comments: int = Field(default=100, ge=0, le=100000000)
 
     # 拒绝空关键词，再去掉首尾空白并按首次出现顺序去重。
     @field_validator("keywords")
@@ -136,8 +143,17 @@ class Classification(Strict):
 
 
 # 一次分析同时输出分类和选题，便于事务内统一保存。
+# 共性必须有多条来源支持；解释与实践建议分开，避免把相关性写成因果。
+class ContentPattern(Strict):
+    observation: str = Field(min_length=1, max_length=1000)
+    hypothesis: str = Field(min_length=1, max_length=1000)
+    experiment: str = Field(min_length=1, max_length=1000)
+    evidence_ids: list[str] = Field(min_length=2, max_length=20)
+
+
 class AnalysisOutput(TopicOutput):
     classifications: list[Classification] = Field(max_length=100)
+    patterns: list[ContentPattern] = Field(default_factory=list, max_length=5)
 
 
 T = TypeVar("T")
@@ -173,6 +189,7 @@ class ResearchOut(ResearchInput):
     analysis_stale: bool = False
     analysis_note: str = "尚未进行模型分析"
     analysis_coverage: list[str] = Field(default_factory=list)
+    collection_summary: dict = Field(default_factory=dict)
 
 
 # 公开任务状态与用量，不暴露内部 payload。
@@ -252,6 +269,8 @@ class ReportOut(BaseModel):
     analysis_stale: bool
     analysis_note: str
     analysis_coverage: list[str]
+    patterns: list[ContentPattern] = Field(default_factory=list)
+    collection_summary: dict = Field(default_factory=dict)
 
 
 # configured 只代表已配置，connected 才表示对应检查成功。

@@ -41,4 +41,6 @@ def report(store, run_id):
         "analysis_stale": run.get("analysis_stale", False),
         "analysis_note": run.get("analysis_note", "尚未进行模型分析"),
         "analysis_coverage": run.get("analysis_coverage", []),
+        "patterns": run.get("patterns", []),
+        "collection_summary": run.get("collection_summary", {}),
     }

@@ -126,3 +126,9 @@ MCP 实际部署后，连接检查使用后端 `XHS_TOOL_TIMEOUT`（默认 90 �
 `DELETE /api/v1/research-runs/{id}`：成功返回 `204`，无响应正文；不存在返回 `404`。若研究下有排队、采集、整理或分析中的任务（包括生成草稿），返回 `409 JOB_ALREADY_RUNNING`，需先取消任务并等待停止。
 
 删除在一个 SQLite 写事务内完成，清除研究、样本、指标快照、选题、关联草稿及全部历史版本、任务记录和指向它们的幂等结果。其他研究及全局设置保留。前端要求二次确认，删除后刷新列表并修正页码；删除当前研究时切换到剩余研究。删除不可恢复，请先导出需要保留的草稿。
+
+### 高互动研究与共性分析
+
+研究输入新增可选字段：`strategy`（recent/engagement，API 默认 recent 兼容旧调用；新建页面默认 engagement）、`rank_by`（balanced/likes/saves/comments）、`content_type`（all/image/video）、`min_likes`（默认 1000）、`min_saves`（300）、`min_comments`（100）。门槛为非负整数，任一开启项达标即可；0 关闭该项。高互动策略必须确认发布时间在范围内，未知时间不入选。
+
+研究响应增加 `collection_summary`，报表响应增加 `collection_summary` 和 `patterns`。每条 pattern 包含 `observation`、`hypothesis`、`experiment`、`evidence_ids`；服务端校验证据至少有两个不同的本次输入样本。旧研究字段为空，重新分析后才可能生成共性。点击/涨粉、视觉分析均未提供，详见 [爆款研究说明](../爆款研究说明.md)。

@@ -200,6 +200,8 @@ export default function ResearchPage({
               <p>
                 {r.keywords.join(" / ")} <span className="dot">·</span> 最近{" "}
                 {r.days} 天 <span className="dot">·</span> 上限 {r.limit} 篇
+                <span className="dot">·</span>{" "}
+                {r.strategy === "engagement" ? "高互动筛选" : "最新内容探索"}
               </p>
               <small>
                 {new Date(r.created_at).toLocaleString("zh-CN")} · {r.audience}

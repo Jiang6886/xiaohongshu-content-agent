@@ -26,6 +26,13 @@ export interface Research {
   source?: string;
   analysis_stale?: boolean;
   analysis_note?: string;
+  strategy?: "recent" | "engagement";
+  rank_by?: "balanced" | "likes" | "saves" | "comments";
+  content_type?: "all" | "image" | "video";
+  min_likes?: number;
+  min_saves?: number;
+  min_comments?: number;
+  collection_summary?: { note?: string; scope?: string };
 }
 // 研究样本；可空指标表示未知，excluded 仅影响有效样本统计。
 export interface Note {
@@ -100,6 +107,13 @@ export interface Job {
 }
 // 报表把样本统计、模型观察、证据和分析过期状态分开展示。
 export interface Report {
+  patterns?: {
+    observation: string;
+    hypothesis: string;
+    experiment: string;
+    evidence_ids: string[];
+  }[];
+  collection_summary?: { note?: string; scope?: string };
   analysis_stale: boolean;
   analysis_note: string;
   observations: {

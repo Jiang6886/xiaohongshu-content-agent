@@ -271,6 +271,14 @@ async def test_worker_analysis_evidence_and_draft(
             "classifications": [
                 {"note_id": n["id"], "topic": "AI 实践"} for n in selected
             ],
+            "patterns": [
+                {
+                    "observation": "共同使用具体场景",
+                    "hypothesis": "可能降低理解成本",
+                    "experiment": "在自己账号对照测试场景标题",
+                    "evidence_ids": [n["id"] for n in selected],
+                }
+            ],
         },
         {"input_tokens": 20, "output_tokens": 30},
     )
@@ -285,6 +293,12 @@ async def test_worker_analysis_evidence_and_draft(
         assert store.get(runs, id)["error"] is None
     else:
         assert store.get(runs, id)["error"] == "上次任务失败"
+    assert (
+        client.get(f"/api/v1/research-runs/{id}/report").json()["patterns"][0][
+            "observation"
+        ]
+        == "共同使用具体场景"
+    )
     t = store.list(topics)[0]
     ai.generate.return_value = (
         {"title": "草稿", "body": "# 草稿\n【待填写经历】"},
@@ -581,3 +595,148 @@ def test_delete_research_cascades_and_preserves_other_research(client, app):
         == 200
     )
     assert store.preference()
+
+
+def test_engagement_thresholds_and_missing_data():
+    from datetime import datetime, timedelta, timezone
+    from xhs_content_agent.sampling import eligible, score, round_robin
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    base = dict(published_at=now(), format="视频", likes=50, saves=400, comments=None)
+    run = dict(content_type="all", min_likes=1000, min_saves=300, min_comments=100)
+    assert eligible(base, run, cutoff)  # 收藏达标即可，不要求三项同时达标。
+    assert not eligible(dict(base, published_at=None), run, cutoff)
+    assert not eligible(dict(base, saves=None), run, cutoff)
+    assert not eligible(base, dict(run, content_type="image"), cutoff)
+    assert not eligible(
+        dict(base, published_at=(cutoff - timedelta(days=1)).isoformat()), run, cutoff
+    )
+    assert eligible(base, dict(run, min_likes=0, min_saves=0, min_comments=0), cutoff)
+    assert not eligible(
+        dict(base, likes=None, saves=None),
+        dict(run, min_likes=0, min_saves=0, min_comments=0),
+        cutoff,
+    )
+    assert score(dict(base, saves=800), "saves") > score(base, "saves")
+    assert score(dict(base, comments=None), "comments") == -1
+    groups = [[{"feed": {"id": x}} for x in ids] for ids in [["a", "b"], ["c", "a"]]]
+    assert [i["feed"]["id"] for i in round_robin(groups)] == ["a", "c", "b"]
+
+
+@pytest.mark.asyncio
+async def test_engagement_searches_all_keywords_then_ranks(app, client):
+    accepted = client.post(
+        "/api/v1/research-runs",
+        headers={"Idempotency-Key": "engagement"},
+        json={
+            "name": "高互动",
+            "keywords": ["第一个", "第二个"],
+            "audience": "测试",
+            "limit": 1,
+            "strategy": "engagement",
+            "rank_by": "saves",
+            "min_likes": 1000,
+            "min_saves": 300,
+            "min_comments": 100,
+        },
+    ).json()
+    source = AsyncMock()
+
+    async def search(keyword, days, sort, content_type):
+        return {
+            "feeds": [
+                {"id": "low" if keyword == "第一个" else "high", "xsecToken": "secret"}
+            ]
+        }
+
+    async def fetch(feed, limit):
+        value = detail(feed["id"])
+        value["data"]["note"]["interactInfo"] = {
+            "likedCount": "1001",
+            "collectedCount": "100" if feed["id"] == "low" else "900",
+            "commentCount": "5",
+        }
+        return value
+
+    source.search.side_effect = search
+    source.detail.side_effect = fetch
+    await Worker(app.state.store, source).run_one()
+    assert source.search.await_count == 6  # 达到最终数量也不会跳过后续关键词/排序。
+    selected = app.state.store.list(notes)
+    assert [n["platform_id"] for n in selected] == ["high"]
+    run = app.state.store.get(runs, accepted["research_run_id"])
+    assert run["collection_summary"]["reviewed"] == 2
+    assert run["collection_summary"]["selected"] == 1
+    assert "secret" not in json.dumps(run)
+    assert (
+        app.state.store.job(accepted["job_id"])["status"] == "partial"
+    )  # 未配置模型但样本保留。
+
+
+@pytest.mark.asyncio
+async def test_engagement_does_not_fill_with_low_metrics(app, client):
+    accepted = client.post(
+        "/api/v1/research-runs",
+        headers={"Idempotency-Key": "no-qualified"},
+        json={
+            "name": "门槛",
+            "keywords": ["AI"],
+            "audience": "测试",
+            "strategy": "engagement",
+            "min_likes": 50000,
+            "min_saves": 10000,
+            "min_comments": 1000,
+        },
+    ).json()
+    source = AsyncMock()
+    source.search.return_value = {"feeds": [{"id": "abc", "xsecToken": "secret"}]}
+    source.detail.return_value = detail()
+    await Worker(app.state.store, source).run_one()
+    assert not app.state.store.list(notes)
+    assert app.state.store.job(accepted["job_id"])["status"] == "failed"
+    assert (
+        app.state.store.get(runs, accepted["research_run_id"])["collection_summary"][
+            "selected"
+        ]
+        == 0
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid", ["duplicate", "unknown"])
+async def test_pattern_evidence_must_be_distinct_input_notes(app, client, invalid):
+    store = app.state.store
+    run_id = imported(client)
+    sample = store.list(notes)
+    ai = AsyncMock()
+    ai.generate.return_value = (
+        {
+            "topics": [
+                {
+                    "title": "选题",
+                    "angle": "角度",
+                    "category": "分类",
+                    "evidence_ids": [sample[0]["id"]],
+                }
+            ],
+            "classifications": [{"note_id": n["id"], "topic": "主题"} for n in sample],
+            "patterns": [
+                {
+                    "observation": "共同特征",
+                    "hypothesis": "原因假设",
+                    "experiment": "对照实验",
+                    "evidence_ids": [
+                        sample[0]["id"],
+                        sample[0]["id"] if invalid == "duplicate" else "missing",
+                    ],
+                }
+            ],
+        },
+        {"input_tokens": 10, "output_tokens": 20},
+    )
+    with store.tx() as c:
+        job = store.enqueue(c, run_id, "topics", {"settings": store.preference()})
+    await Worker(store, intelligence=ai).run_one()
+    assert store.job(job)["status"] == "failed"
+    assert not store.list(topics)
+    assert not store.get(runs, run_id).get("patterns")

@@ -3442,6 +3442,46 @@
         ],
         "title": "Connections"
       },
+      "ContentPattern": {
+        "properties": {
+          "observation": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Observation"
+          },
+          "hypothesis": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Hypothesis"
+          },
+          "experiment": {
+            "type": "string",
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Experiment"
+          },
+          "evidence_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 20,
+            "minItems": 2,
+            "title": "Evidence Ids"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "observation",
+          "hypothesis",
+          "experiment",
+          "evidence_ids"
+        ],
+        "title": "ContentPattern"
+      },
       "DraftInput": {
         "properties": {
           "base_version": {
@@ -4289,6 +4329,18 @@
             },
             "type": "array",
             "title": "Analysis Coverage"
+          },
+          "patterns": {
+            "items": {
+              "$ref": "#/components/schemas/ContentPattern"
+            },
+            "type": "array",
+            "title": "Patterns"
+          },
+          "collection_summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Collection Summary"
           }
         },
         "type": "object",
@@ -4343,6 +4395,57 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 20
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "recent",
+              "engagement"
+            ],
+            "title": "Strategy",
+            "default": "recent"
+          },
+          "rank_by": {
+            "type": "string",
+            "enum": [
+              "balanced",
+              "likes",
+              "saves",
+              "comments"
+            ],
+            "title": "Rank By",
+            "default": "balanced"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "all",
+              "image",
+              "video"
+            ],
+            "title": "Content Type",
+            "default": "all"
+          },
+          "min_likes": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Likes",
+            "default": 1000
+          },
+          "min_saves": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Saves",
+            "default": 300
+          },
+          "min_comments": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Comments",
+            "default": 100
           }
         },
         "additionalProperties": false,
@@ -4392,6 +4495,57 @@
             "minimum": 1.0,
             "title": "Limit",
             "default": 20
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "recent",
+              "engagement"
+            ],
+            "title": "Strategy",
+            "default": "recent"
+          },
+          "rank_by": {
+            "type": "string",
+            "enum": [
+              "balanced",
+              "likes",
+              "saves",
+              "comments"
+            ],
+            "title": "Rank By",
+            "default": "balanced"
+          },
+          "content_type": {
+            "type": "string",
+            "enum": [
+              "all",
+              "image",
+              "video"
+            ],
+            "title": "Content Type",
+            "default": "all"
+          },
+          "min_likes": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Likes",
+            "default": 1000
+          },
+          "min_saves": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Saves",
+            "default": 300
+          },
+          "min_comments": {
+            "type": "integer",
+            "maximum": 100000000.0,
+            "minimum": 0.0,
+            "title": "Min Comments",
+            "default": 100
           },
           "id": {
             "type": "string",
@@ -4461,6 +4615,11 @@
             },
             "type": "array",
             "title": "Analysis Coverage"
+          },
+          "collection_summary": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Collection Summary"
           }
         },
         "additionalProperties": false,
