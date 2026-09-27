@@ -531,6 +531,13 @@ h1 {
   display: grid;
   gap: 16px;
 }
+.run-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  flex-shrink: 0;
+}
 .run-card {
   display: flex;
   gap: 20px;
@@ -955,6 +962,20 @@ footer {
   }
   .run-card > .ant-btn {
     margin-left: auto;
+  }
+  .run-body {
+    flex-basis: 100%;
+    overflow-wrap: anywhere;
+  }
+  .run-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+    margin-left: auto;
+  }
+  .heading > .row {
+    flex-wrap: wrap;
+    min-width: 0;
+    justify-content: flex-end;
   }
   .journey {
     padding: 24px;

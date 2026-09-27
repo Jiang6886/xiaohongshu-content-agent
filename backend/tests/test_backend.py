@@ -520,3 +520,64 @@ async def test_invalid_json_preserves_provider_usage(client, app):
         await worker.model_call(j, AnalysisOutput, {"notes": []})
     usage = app.state.store.job(j)["usage"]
     assert usage["input_tokens"] == 321 and usage["output_tokens"] == 99
+
+
+@pytest.mark.parametrize("status", ["queued", "collecting", "cleaning", "analyzing"])
+def test_delete_research_rejects_active_job(client, app, status):
+    from xhs_content_agent.storage import jobs
+
+    accepted = create(client).json()
+    id, job = accepted["research_run_id"], accepted["job_id"]
+    app.state.store.update_job(job, status)
+    response = client.delete(f"/api/v1/research-runs/{id}")
+    assert response.status_code == 409
+    assert response.json()["error"]["code"] == "JOB_ALREADY_RUNNING"
+    assert app.state.store.get(runs, id)
+    assert app.state.store.get(jobs, job)
+
+
+def test_delete_research_cascades_and_preserves_other_research(client, app):
+    from sqlalchemy import select
+    from xhs_content_agent.storage import idem, jobs, snapshots
+
+    store = app.state.store
+    id = imported(client)
+    other = create(client, key="keep").json()
+    with store.tx() as c:
+        c.execute(
+            insert(topics).values(
+                id="delete-topic", run_id=id, data={"id": "delete-topic"}
+            )
+        )
+        for name, topic in [
+            ("delete-draft", "delete-topic"),
+            ("keep-draft", "other-topic"),
+        ]:
+            value = {"id": name, "topic_id": topic}
+            c.execute(insert(drafts).values(id=name, version=2, data=value))
+            for version in (1, 2):
+                c.execute(
+                    insert(versions).values(draft_id=name, version=version, data=value)
+                )
+        job = store.enqueue(c, id, "topics", {"settings": store.preference()})
+    # 研究状态已完成，但其新分析任务仍在排队时也必须拦截。
+    assert client.delete(f"/api/v1/research-runs/{id}").status_code == 409
+    store.update_job(job, "failed")
+    assert client.delete(f"/api/v1/research-runs/{id}").status_code == 204
+    assert client.get(f"/api/v1/research-runs/{id}").status_code == 404
+    assert client.delete(f"/api/v1/research-runs/{id}").status_code == 404
+    for table in (notes, topics, jobs):
+        assert not store.list(table, table.c.run_id == id)
+    assert not store.list(snapshots)
+    assert [d["id"] for d in store.list(drafts)] == ["keep-draft"]
+    with store.engine.connect() as c:
+        assert c.execute(select(versions.c.draft_id)).scalars().all() == [
+            "keep-draft",
+            "keep-draft",
+        ]
+        assert c.execute(select(idem.c.key)).scalars().all() == ["keep"]
+    assert (
+        client.get(f"/api/v1/research-runs/{other['research_run_id']}").status_code
+        == 200
+    )
+    assert store.preference()

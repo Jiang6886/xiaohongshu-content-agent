@@ -28,7 +28,7 @@ npm run dev
 
 - [前端说明](frontend/README.md)：运行、构建、测试与演示限制。
 - [API 接口文档](docs/api/API接口说明.md)：页面需要的接口与后端实现规则。
-- [OpenAPI 定义](docs/api/openapi.json)：29 个接口操作，可导入接口工具。
+- [OpenAPI 定义](docs/api/openapi.json)：30 个接口操作，可导入接口工具。
 - [实际桌面截图](docs/design/frontend-analysis.png) / [手机截图](docs/design/frontend-mobile.png)。
 
 ## 运行真实后端

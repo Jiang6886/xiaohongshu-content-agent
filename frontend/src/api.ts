@@ -32,6 +32,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const payload = await response.json().catch(() => null);
     throw new Error(payload?.error?.message ?? `请求失败 (${response.status})`);
   }
+  if (response.status === 204) return undefined as T;
   return response.json();
 }
 // 按后端 total 拉取所有分页，避免页面统计只包含第一页。
@@ -122,6 +123,9 @@ const live = {
     return request<Research>(`/research-runs/${result.research_run_id}`);
   },
   // 研究页的取消按钮作用于该研究关联的采集任务。
+  async deleteResearch(id: string) {
+    await request<void>(`/research-runs/${id}`, { method: "DELETE" });
+  },
   async cancel(id: string) {
     const run = snapshot.runs.find((r) => r.id === id);
     if (run?.job_id) await post(`/jobs/${run.job_id}/cancel`);

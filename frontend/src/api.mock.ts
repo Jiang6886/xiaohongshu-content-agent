@@ -177,6 +177,22 @@ export const api = {
     write(d);
     return r;
   },
+  // 演示模式同样级联移除关联数据，保持与真实接口一致的页面行为。
+  async deleteResearch(id: string) {
+    const d = read();
+    const run = d.runs.find((r) => r.id === id);
+    if (!run) throw Error("研究不存在");
+    if (["queued", "collecting", "cleaning", "analyzing"].includes(run.status))
+      throw Error("请先取消任务并等待停止后再删除");
+    const topicIds = new Set(d.topics.filter((t) => t.run_id === id).map((t) => t.id));
+    d.drafts = d.drafts.filter((x) => !topicIds.has(x.topic_id));
+    d.topics = d.topics.filter((x) => x.run_id !== id);
+    d.notes = d.notes.filter((x) => x.run_id !== id);
+    d.runs = d.runs.filter((x) => x.id !== id);
+    d.jobs = d.jobs?.filter((x) => x.research_run_id !== id);
+    if (d.reports) delete d.reports[id];
+    write(d);
+  },
   async cancel(id: string) {
     await wait();
     const d = read();

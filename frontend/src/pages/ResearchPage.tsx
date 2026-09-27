@@ -34,6 +34,7 @@ import {
   TeamOutlined,
   InfoCircleOutlined,
   ReloadOutlined,
+  DeleteOutlined,
 } from "@ant-design/icons";
 import {
   api,
@@ -52,14 +53,45 @@ export default function ResearchPage({
   onCreate,
   onView,
   onCancel,
+  onDelete,
 }: {
   db: Database;
   onCreate: () => void;
   onView: (id: string) => void;
   onCancel: (id: string) => void;
+  onDelete: (id: string) => Promise<void>;
 }) {
-  const { message } = AntApp.useApp();
+  const { message, modal } = AntApp.useApp();
   const [page, setPage] = useState(1);
+  const [deleting, setDeleting] = useState<string>();
+  // 最后一页删除后回到有效页码，避免列表看起来为空但仍有其他研究。
+  useEffect(() => {
+    setPage((current) =>
+      Math.min(current, Math.max(1, Math.ceil(db.runs.length / 2))),
+    );
+  }, [db.runs.length]);
+  const confirmDelete = (research: Research) => {
+    modal.confirm({
+      title: `删除研究“${research.name}”？`,
+      content:
+        "将永久删除这项研究的样本、选题、关联草稿及全部历史版本和任务记录，无法恢复。其他研究不受影响。",
+      okText: "确认删除",
+      cancelText: "保留研究",
+      okButtonProps: { danger: true },
+      onOk: async () => {
+        setDeleting(research.id);
+        try {
+          await onDelete(research.id);
+          message.success("研究已删除");
+        } catch (e) {
+          message.error((e as Error).message);
+          throw e;
+        } finally {
+          setDeleting(undefined);
+        }
+      },
+    });
+  };
   const [importing, setImporting] = useState(false);
   // 检查文件大小并解析 JSON 后提交导入；字段合法性和数量上限由后端再次校验。
   const importFile = async (file: File) => {
@@ -179,18 +211,44 @@ export default function ResearchPage({
                   strokeColor="#65978a"
                 />
               )}
-              {r.error && <Alert type={r.status === "partial" ? "warning" : "error"} title={r.error} />}
+              {r.error && (
+                <Alert
+                  type={r.status === "partial" ? "warning" : "error"}
+                  title={r.error}
+                />
+              )}
             </div>
-            {activeStatuses.includes(r.status) ? (
-              <Button onClick={() => onCancel(r.id)}>取消任务</Button>
-            ) : (
+            <div className="run-actions">
+              {activeStatuses.includes(r.status) ? (
+                <Button onClick={() => onCancel(r.id)}>取消任务</Button>
+              ) : (
+                <Button
+                  icon={<ArrowRightOutlined />}
+                  onClick={() => onView(r.id)}
+                >
+                  查看结果
+                </Button>
+              )}
               <Button
-                icon={<ArrowRightOutlined />}
-                onClick={() => onView(r.id)}
+                danger
+                type="text"
+                icon={<DeleteOutlined />}
+                loading={deleting === r.id}
+                disabled={
+                  Boolean(deleting) ||
+                  activeStatuses.includes(r.status) ||
+                  db.jobs?.some(
+                    (j) =>
+                      j.research_run_id === r.id &&
+                      activeStatuses.includes(j.status),
+                  )
+                }
+                title="永久删除研究；有活动任务时请先取消并等待停止"
+                onClick={() => confirmDelete(r)}
               >
-                查看结果
+                删除研究
               </Button>
-            )}
+            </div>
           </section>
         ))}
       </div>

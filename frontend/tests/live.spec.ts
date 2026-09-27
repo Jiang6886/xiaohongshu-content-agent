@@ -185,3 +185,82 @@ test("失败且无样本的研究显示真实空状态，桌面不溢出", async
   }
   await expect(page.getByText("暂无样本", { exact: true })).toBeVisible();
 });
+
+test("删除研究：保留、确认、末页回退与持久化", async ({ page, request }) => {
+  const ids: string[] = [];
+  for (let i = 0; i < 3; i++) {
+    const response = await request.post("/api/v1/imports", {
+      headers: { "Idempotency-Key": `delete-fixture-${i}` },
+      data: {
+        research: {
+          name: `删除验收-${i}`,
+          keywords: ["删除测试"],
+          audience: "测试",
+          limit: 1,
+        },
+        notes: [{ platform_id: `delete-${i}`, title: "临时素材" }],
+      },
+    });
+    expect(response.status()).toBe(201);
+    ids.push((await response.json()).research_run_id);
+  }
+  await page.goto("/research");
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expect(page.locator(".run-card").first()).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  // 删除最新项，先验证关闭确认框不会发出删除操作。
+  const card = page.locator(".run-card").filter({ hasText: "删除验收-2" });
+  await card.getByRole("button", { name: "删除研究" }).click();
+  await expect(page.getByRole("dialog")).toContainText(
+    "关联草稿及全部历史版本",
+  );
+  await page.getByRole("button", { name: "保留研究" }).click();
+  expect((await request.get(`/api/v1/research-runs/${ids[2]}`)).status()).toBe(
+    200,
+  );
+  await card.getByRole("button", { name: "删除研究" }).click();
+  await page.getByRole("button", { name: "确认删除" }).click();
+  await expect(card).toHaveCount(0);
+  expect((await request.get(`/api/v1/research-runs/${ids[2]}`)).status()).toBe(
+    404,
+  );
+  // 将最后一页逐项删空，验证页码能回退，避免误显示空列表。
+  while (await page.locator(".run-card").count()) {
+    const next = page.locator(
+      ".run-pagination .ant-pagination-next:not(.ant-pagination-disabled)",
+    );
+    if (await next.count()) {
+      await next.click();
+      continue;
+    }
+    const button = page
+      .locator(".run-card")
+      .last()
+      .getByRole("button", { name: "删除研究" });
+    if (await button.isDisabled()) break;
+    const count = (
+      await request.get("/api/v1/research-runs?page_size=100")
+    ).json();
+    const before = (await count).total;
+    await button.click();
+    await page.getByRole("button", { name: "确认删除" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect
+      .poll(
+        async () =>
+          (
+            await (
+              await request.get("/api/v1/research-runs?page_size=100")
+            ).json()
+          ).total,
+      )
+      .toBe(before - 1);
+  }
+  await page.reload();
+  await expect(page.getByText("删除验收-2", { exact: true })).toHaveCount(0);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});

@@ -216,7 +216,7 @@ def create_app(config=None):
     @app.post(prefix + "/model-config/test", tags=["settings"])
     async def test_model_config():
         await Intelligence(config).generate(
-            'Return only JSON: {"ok":true}', 'Connection test', '', 64
+            'Return only JSON: {"ok":true}', "Connection test", "", 64
         )
         return {"status": "connected", "message": "模型调用成功"}
 
@@ -235,7 +235,9 @@ def create_app(config=None):
         return {
             "mcp": mcp,
             "model": {
-                "status": "configured" if resolve(config).model_configured else "disconnected",
+                "status": "configured"
+                if resolve(config).model_configured
+                else "disconnected",
                 "message": "已配置；尚未验证实际模型调用"
                 if resolve(config).model_configured
                 else "请在设置的模型服务中填写模型名称、服务地址和 API Key",
@@ -348,6 +350,17 @@ def create_app(config=None):
     )
     def get_run(id: str):
         return store.get(runs, id)
+
+    # 删除完整研究及关联内容；活动任务由存储层在同一事务内拦截。
+    @app.delete(
+        prefix + "/research-runs/{id}",
+        status_code=204,
+        response_class=Response,
+        tags=["research"],
+    )
+    def delete_run(id: str):
+        store.delete_run(id)
+        return Response(status_code=204)
 
     # 读取单个任务状态及结果 ID，供前端轮询使用。
     @app.get(prefix + "/jobs/{id}", response_model=JobOut, tags=["jobs"])

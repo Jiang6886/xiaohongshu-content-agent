@@ -18,6 +18,7 @@ from sqlalchemy import (
     Table,
     UniqueConstraint,
     create_engine,
+    delete,
     event,
     insert,
     select,
@@ -350,6 +351,43 @@ class Store:
                 if r["status"] in {"partial", "failed"} and r["progress"] >= 80:
                     r.update(status="completed", progress=100, error=None)
                     self.put(c, runs, r["id"], r)
+
+    # 持有写锁检查活动任务并级联删除，防止 worker 同时领取任务或写回结果。
+    def delete_run(self, id):
+        with self.tx() as c:
+            self.get(runs, id, c)
+            if c.execute(
+                select(jobs.c.id).where(
+                    jobs.c.run_id == id, jobs.c.status.not_in(TERMINAL)
+                )
+            ).first():
+                raise Problem(
+                    "JOB_ALREADY_RUNNING",
+                    "该研究仍有活动任务，请先取消并等待停止后再删除",
+                    409,
+                )
+            note_ids = select(notes.c.id).where(notes.c.run_id == id)
+            topic_ids = {t["id"] for t in self.list(topics, topics.c.run_id == id, c)}
+            draft_ids = [
+                d["id"] for d in self.list(drafts, c=c) if d["topic_id"] in topic_ids
+            ]
+            job_ids = set(
+                c.execute(select(jobs.c.id).where(jobs.c.run_id == id)).scalars()
+            )
+            c.execute(delete(snapshots).where(snapshots.c.note_id.in_(note_ids)))
+            c.execute(delete(versions).where(versions.c.draft_id.in_(draft_ids)))
+            c.execute(delete(drafts).where(drafts.c.id.in_(draft_ids)))
+            # 清除指向已删除对象的幂等结果，避免后续提交拿到失效 ID。
+            for entry in c.execute(select(idem)).mappings():
+                result = entry["result"]
+                if (
+                    result.get("research_run_id") == id
+                    or result.get("job_id") in job_ids
+                ):
+                    c.execute(delete(idem).where(idem.c.key == entry["key"]))
+            for table in (topics, notes, jobs):
+                c.execute(delete(table).where(table.c.run_id == id))
+            c.execute(delete(runs).where(runs.c.id == id))
 
     # 协作式取消检查：在步骤边界抛出异常，不强行中断正在执行的外部请求。
     def check_cancel(self, id):

@@ -222,6 +222,14 @@ function Shell() {
                   <ResearchPage
                     db={db}
                     onCreate={() => setCreating(true)}
+                    onDelete={async (id) => {
+                      await api.deleteResearch(id);
+                      if (active?.id === id) {
+                        setRun(db.runs.find((r) => r.id !== id)?.id ?? "");
+                        setNote(undefined);
+                      }
+                      await reload();
+                    }}
                     onView={(id) => {
                       setRun(id);
                       navigate("/analysis");
