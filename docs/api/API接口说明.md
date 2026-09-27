@@ -132,3 +132,9 @@ MCP 实际部署后，连接检查使用后端 `XHS_TOOL_TIMEOUT`（默认 90 �
 研究输入新增可选字段：`strategy`（recent/engagement，API 默认 recent 兼容旧调用；新建页面默认 engagement）、`rank_by`（balanced/likes/saves/comments）、`content_type`（all/image/video）、`min_likes`（默认 1000）、`min_saves`（300）、`min_comments`（100）。门槛为非负整数，任一开启项达标即可；0 关闭该项。高互动策略必须确认发布时间在范围内，未知时间不入选。
 
 研究响应增加 `collection_summary`，报表响应增加 `collection_summary` 和 `patterns`。每条 pattern 包含 `observation`、`hypothesis`、`experiment`、`evidence_ids`；服务端校验证据至少有两个不同的本次输入样本。旧研究字段为空，重新分析后才可能生成共性。点击/涨粉、视觉分析均未提供，详见 [爆款研究说明](../爆款研究说明.md)。
+
+### 研究 token 展示口径
+
+前端使用现有 `GET /jobs` 返回的 `usage` 字段，按 `research_run_id` 累加所有任务，包括失败、重试、重新分析与生成草稿。研究卡片展示输入、输出及总量，点击展开任务明细。不包含设置页模型连接测试。
+
+`reserved_tokens` 只表示预算预留，不能作为真实消耗。若预留为 0 且输入/输出均为空，表示尚未记录模型调用；其他缺失字段显示“待确认”，只汇总已知部分并注明总量不完整。历史缺失用量无法从当前数据准确补算；演示模式明确显示未调用模型。

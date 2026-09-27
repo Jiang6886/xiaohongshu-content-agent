@@ -95,6 +95,12 @@ export interface Database {
 
 // 前端所需的后台任务字段；result_id 在完成后指向生成结果。
 export interface Job {
+  usage?: {
+    reserved_tokens: number;
+    input_tokens: number | null;
+    output_tokens: number | null;
+    tool_calls: number;
+  };
   id: string;
   research_run_id: string;
   kind: "research" | "topics" | "draft";

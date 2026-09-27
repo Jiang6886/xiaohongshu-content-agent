@@ -1,7 +1,7 @@
 // 全局后台任务入口：展示活动/异常任务，支持取消与重试。
 // 重试是新任务；同一研究按最新阶段展示，草稿任务则独立保留。
 
-import { Button, Tag, Progress, App, Drawer } from "antd";
+import { Button, Tag, Progress, App, Drawer, Empty } from "antd";
 import { useState } from "react";
 import {
   backend,
@@ -45,7 +45,6 @@ export default function BackendJobs({
       j.status === "failed" ||
       j.status === "partial",
   );
-  if (!items.length) return null;
   return (
     <>
       <Button
@@ -56,6 +55,7 @@ export default function BackendJobs({
         后台任务 · {items.length}
       </Button>
       <Drawer title="后台任务" open={open} onClose={() => setOpen(false)}>
+        {!items.length && <Empty description="暂无进行中或需要处理的任务" />}
         {items.map((j) => (
           <div
             key={j.id}

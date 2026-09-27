@@ -47,6 +47,7 @@ import {
   type Settings,
 } from "../api";
 import Heading from "../components/Heading";
+import ResearchUsage from "../components/ResearchUsage";
 
 export default function ResearchPage({
   db,
@@ -206,6 +207,11 @@ export default function ResearchPage({
               <small>
                 {new Date(r.created_at).toLocaleString("zh-CN")} · {r.audience}
               </small>
+              <ResearchUsage
+                name={r.name}
+                jobs={(db.jobs ?? []).filter((j) => j.research_run_id === r.id)}
+                demo={isDemo}
+              />
               {activeStatuses.includes(r.status) && (
                 <Progress
                   percent={r.progress}

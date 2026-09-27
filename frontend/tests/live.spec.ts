@@ -356,3 +356,89 @@ test("共性结果区分观察与假设并能追溯样本", async ({ page, reque
     page.getByRole("heading", { name: "证据标题甲", exact: true }),
   ).toBeVisible();
 });
+
+test("顶部任务入口固定在布局内，研究 token 汇总保留未知用量", async ({
+  page,
+  request,
+}) => {
+  const response = await request.post("/api/v1/imports", {
+    headers: { "Idempotency-Key": "usage-ui" },
+    data: {
+      research: {
+        name: "Token 统计验收",
+        keywords: ["测试"],
+        audience: "测试",
+        limit: 1,
+      },
+      notes: [{ platform_id: "usage-a", title: "用量测试素材" }],
+    },
+  });
+  const id = (await response.json()).research_run_id;
+  const make = (
+    key: string,
+    kind: string,
+    input: number | null,
+    output: number | null,
+    reserved = 20000,
+  ) => ({
+    id: key,
+    kind,
+    research_run_id: id,
+    status: "completed",
+    progress: 100,
+    cancel_requested: false,
+    error: null,
+    result_id: null,
+    created_at: "2026-09-28T10:00:00Z",
+    usage: {
+      reserved_tokens: reserved,
+      input_tokens: input,
+      output_tokens: output,
+      tool_calls: 1,
+    },
+  });
+  let jobs: object[] = [
+    make("research", "research", 100, 40),
+    make("retry", "topics", 20, 10),
+    make("draft", "draft", 30, 15),
+    { ...make("partial", "topics", 8, null), status: "failed" },
+    make("unused", "research", null, null, 0),
+    { ...make("legacy", "topics", null, null), usage: undefined },
+    { ...make("unrelated", "draft", 9999, 9999), research_run_id: "other" },
+  ];
+  await page.route("**/api/v1/jobs?*", (route) =>
+    route.fulfill({
+      json: { items: jobs, total: jobs.length, page: 1, page_size: 100 },
+    }),
+  );
+  await page.goto("/research");
+  const card = page.locator(".run-card").filter({ hasText: "Token 统计验收" });
+  await expect(
+    card.getByRole("button", { name: "Token：已记录 223 · 2 项用量待确认" }),
+  ).toBeVisible();
+  await card.getByRole("button", { name: /Token：/ }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toContainText("输入 158 / 输出 65");
+  await expect(dialog).toContainText("输入 8 / 输出 待确认");
+  await expect(dialog).toContainText("0 tokens · 未记录到模型调用");
+  await page.keyboard.press("Escape");
+  const button = page.locator(".topbar .jobs-button");
+  await expect(button).toBeVisible();
+  expect(await button.evaluate((e) => getComputedStyle(e).position)).not.toBe(
+    "fixed",
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  jobs = [];
+  await page.reload();
+  await expect(page.locator(".topbar .jobs-button")).toHaveText("后台任务 · 0");
+  await expect(
+    card.getByRole("button", { name: "Token：0（输入 0 / 输出 0）" }),
+  ).toBeVisible();
+  await page.locator(".topbar .jobs-button").click();
+  await expect(page.getByText("暂无进行中或需要处理的任务")).toBeVisible();
+});

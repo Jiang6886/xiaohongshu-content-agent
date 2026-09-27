@@ -196,6 +196,9 @@ function Shell() {
             WORKSPACE <span className="slash">/</span> 个人创作空间
           </span>
           <div>
+            {!isDemo && db?.jobs && (
+              <BackendJobs jobs={db.jobs} runs={db.runs} onChange={reload} />
+            )}
             <Tag bordered={false}>
               {isDemo ? "DEMO · 演示模式" : "LIVE · 本地服务"}
             </Tag>
@@ -210,9 +213,6 @@ function Shell() {
               action={<Button onClick={reload}>重新连接</Button>}
               style={{ marginBottom: 20 }}
             />
-          )}
-          {!isDemo && db?.jobs && (
-            <BackendJobs jobs={db.jobs} runs={db.runs} onChange={reload} />
           )}
           {!db ? (
             <div className="loading">
